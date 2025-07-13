@@ -1,7 +1,12 @@
 fn main() {
     let s1 = "Hello";
     let s2 = " World";
-    let result = concatenate_strings(&s1, &s2);
+
+    let slice_s1 = &s1[0..3];
+    let slice_s2 = &s2[0..3];
+
+    let result = concatenate_strings(slice_s1, slice_s2);
+    
     println!("{}", result);
 }
 

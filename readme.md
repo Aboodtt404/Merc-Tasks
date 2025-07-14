@@ -30,12 +30,4 @@ A secure command-line password manager that enables users to:
 
 The system implements proper error handling, data persistence, and uses the serde framework for JSON serialization/deserialization.
 
-## Task PassVault: Password Manager
-A secure command-line password manager that enables users to:
-- Store service credentials (service name, username, password)
-- List all stored credentials
-- Search for specific service credentials
-- Secure data storage using JSON format
-
-The system implements proper error handling, data persistence, and uses the serde framework for JSON serialization/deserialization.
 To be continued...

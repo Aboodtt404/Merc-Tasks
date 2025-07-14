@@ -21,5 +21,4 @@ A basic banking system that implements:
 
 The system uses Rust's trait system to define standard account behavior and includes basic validation for all transactions.
 
-## Conclusion
-These three tasks show a progression from basic Rust operations to more complex systems, each demonstrating different aspects of the language.
+To be continued...

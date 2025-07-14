@@ -21,4 +21,13 @@ A basic banking system that implements:
 
 The system uses Rust's trait system to define standard account behavior and includes basic validation for all transactions.
 
+## Task PassVault: Password Manager
+A secure command-line password manager that enables users to:
+- Store service credentials (service name, username, password)
+- List all stored credentials
+- Search for specific service credentials
+- Secure data storage using JSON format
+
+The system implements proper error handling, data persistence, and uses the serde framework for JSON serialization/deserialization.
+
 To be continued...

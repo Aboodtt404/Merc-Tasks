@@ -8,7 +8,7 @@ fn clr() {
     let _ = std::io::stdout().flush();
 }
 
-fn display_ascii_art() {
+fn display_ascii() {
     let ascii = r#"
     ____                __     __           _ _   
     |  _ \ __ _ ___ ___\ \   / /_ _ _   _| | |_ 
@@ -20,8 +20,10 @@ fn display_ascii_art() {
 }
 
 fn main() {
+
     clr();
-    display_ascii_art();
+
+    display_ascii();
     
     loop {
         println!("\nPassword manager menu: ");
@@ -36,7 +38,7 @@ fn main() {
         match choice.trim() {
             "1" => {
                 clr();
-                display_ascii_art();
+                display_ascii();
                 let entry = ServiceInfo::new(
                     prompt("Service: "),
                     prompt("Username: "),
@@ -47,7 +49,7 @@ fn main() {
             }
             "2" => {
                 clr();
-                display_ascii_art();
+                display_ascii();
                 match read_password_from_file() {
                     Ok(services) => {
                         if services.is_empty() {
@@ -70,7 +72,7 @@ fn main() {
             }
             "3" => {
                 clr();
-                display_ascii_art();
+                display_ascii();
                 match read_password_from_file() {
                     Ok(services) => {
                         let search = prompt("Search: ");
@@ -96,7 +98,7 @@ fn main() {
             }
             "4" => {
                 clr();
-                display_ascii_art();
+                display_ascii();
                 println!("Exiting...");
                 break;
             }

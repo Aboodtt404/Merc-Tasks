@@ -7,28 +7,12 @@ struct Task {
     completed: bool,
 }
 
-enum TaskOperation {
-    Add,
-    Complete,
-    Delete,
-    Display,
-}
-
 fn get_priority_from_input(input: &str) -> String {
     match input.trim().to_lowercase().chars().next() {
         Some('h') => String::from("High"),
         Some('m') => String::from("Medium"),
         Some('l') => String::from("Low"),
         _ => String::from("Medium"),  // Default to Medium if input is invalid
-    }
-}
-
-fn get_priority_value(priority: &str) -> i32 {
-    match priority {
-        "High" => 3,
-        "Medium" => 2,
-        "Low" => 1,
-        _ => 0,
     }
 }
 

@@ -322,13 +322,12 @@ fn display_product_menu() {
     println!("╔══════════════════════════════════════════╗");
     println!("║            CARGO MANAGEMENT              ║");
     println!("╠══════════════════════════════════════════╣");
-    println!("║  [1] Create New Cargo                    ║");
-    println!("║  [2] View Cargo Registry                 ║");
-    println!("║  [3] Modify Cargo                        ║");
-    println!("║  [4] Remove Cargo                        ║");
-    println!("║  [5] Return to Console                   ║");
+    println!("║  [1] View Cargo Registry                 ║");
+    println!("║  [2] Modify Cargo                        ║");
+    println!("║  [3] Remove Cargo                        ║");
+    println!("║  [4] Return to Console                   ║");
     println!("╚══════════════════════════════════════════╝");
-    println!("\nEnter your choice (1-5): ");
+    println!("\nEnter your choice (1-4): ");
 }
 
 fn display_sales_menu() {
@@ -373,11 +372,10 @@ fn handle_product_menu(db: &mut Database) {
 
         let choice = prompt("");
         match choice.trim() {
-            "1" => add_product(db),
-            "2" => list_products(db),
-            "3" => edit_product(db),
-            "4" => delete_product(db),
-            "5" => break,
+            "1" => list_products(db),
+            "2" => edit_product(db),
+            "3" => delete_product(db),
+            "4" => break,
             _ => {
                 println!("Invalid option. Press Enter to continue...");
                 prompt("");

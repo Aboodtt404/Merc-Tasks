@@ -29,6 +29,8 @@ A secure command-line password manager that enables users to:
 ## Task RuSTOCK: Inventory Management System
 A comprehensive store inventory management system that provides:
 - Complete product inventory management (CRUD operations)
+- Sales and purchase tracking to manage stock levels
+- Generation of text-based reports for inventory, sales, and purchase history
 - Secure data persistence using SQLite database
 - Detailed product tracking (name, description, price, quantity)
 - User-friendly terminal interface with ASCII art logo

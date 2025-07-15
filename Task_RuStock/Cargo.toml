@@ -1,0 +1,10 @@
+[package]
+name = "Task_RuStock"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rusqlite = { version = "0.30.0", features = ["bundled"] }  # SQLite database
+serde = { version = "1.0", features = ["derive"] }         # Serialization
+chrono = "0.4"                                             # Date and time
+uuid = { version = "1.7", features = ["v4"] }              # Unique IDs

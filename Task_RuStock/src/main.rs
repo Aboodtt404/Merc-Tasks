@@ -134,7 +134,7 @@ fn edit_product(db: &Database) {
     prompt("");
 }
 
-fn delete_product(db: &Database) {
+fn delete_product(db: &mut Database) {
     clear_screen();
     display_logo();
     println!("\nDelete Product");

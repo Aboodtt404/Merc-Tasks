@@ -24,6 +24,8 @@ impl Database {
     }
 
     fn init_db(&self) -> Result<()> {
+        self.conn.execute("PRAGMA foreign_keys = ON", [])?;
+
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS products (
                 id TEXT PRIMARY KEY,
@@ -44,7 +46,7 @@ impl Database {
                 quantity INTEGER NOT NULL,
                 total_price REAL NOT NULL,
                 sale_date TEXT NOT NULL,
-                FOREIGN KEY(product_id) REFERENCES products(id)
+                FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
             )",
             [],
         )?;
@@ -57,7 +59,7 @@ impl Database {
                 purchase_price REAL NOT NULL,
                 total_cost REAL NOT NULL,
                 purchase_date TEXT NOT NULL,
-                FOREIGN KEY(product_id) REFERENCES products(id)
+                FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
             )",
             [],
         )?;
@@ -99,19 +101,8 @@ impl Database {
         Ok(())
     }
 
-    pub fn delete_product(&self, id: &str) -> Result<()> {
-        let tx = self.conn.transaction()?;
-
-        // Delete related sales records
-        tx.execute("DELETE FROM sales WHERE product_id = ?1", [id])?;
-
-        // Delete related purchase records
-        tx.execute("DELETE FROM purchases WHERE product_id = ?1", [id])?;
-
-        // Finally delete the product
-        tx.execute("DELETE FROM products WHERE id = ?1", [id])?;
-
-        tx.commit()?;
+    pub fn delete_product(&mut self, id: &str) -> Result<()> {
+        self.conn.execute("DELETE FROM products WHERE id = ?1", [id])?;
         Ok(())
     }
 
@@ -178,7 +169,6 @@ impl Database {
         let tx = self.conn.transaction()?;
 
         for item in &sale.items {
-            // Update product quantity
             let rows_updated = tx.execute(
                 "UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?",
                 params![item.quantity, item.product_id, item.quantity],
@@ -188,14 +178,12 @@ impl Database {
                 return Err(rusqlite::Error::InvalidParameterCount(0, 1));
             }
 
-            // Check if quantity is now 0 and delete the product if it is
             tx.execute(
                 "DELETE FROM products WHERE id = ? AND quantity = 0",
                 params![item.product_id],
             )?;
         }
 
-        // Record the sale
         tx.execute(
             "INSERT INTO sales (product_id, quantity, total_price, sale_date) VALUES (?, ?, ?, datetime('now'))",
             params![
@@ -212,7 +200,6 @@ impl Database {
     pub fn record_purchase(&mut self, purchase: &Purchase) -> Result<()> {
         let tx = self.conn.transaction()?;
 
-        // Update product quantity
         let rows_updated = tx.execute(
             "UPDATE products SET quantity = quantity + ? WHERE id = ?",
             params![purchase.quantity, purchase.product_id],
@@ -222,7 +209,6 @@ impl Database {
             return Err(rusqlite::Error::InvalidParameterCount(0, 1));
         }
 
-        // Record the purchase
         tx.execute(
             "INSERT INTO purchases (product_id, quantity, purchase_price, total_cost, purchase_date) 
              VALUES (?, ?, ?, ?, datetime('now'))",
@@ -327,7 +313,7 @@ impl Database {
                     total_cost: row.get(3)?,
                     purchase_date: row.get(4)?,
                 },
-                row.get(5)?, // product name
+                row.get(5)?,
             ))
         })?;
 

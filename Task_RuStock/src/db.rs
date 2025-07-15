@@ -1,5 +1,4 @@
 use rusqlite::{params, Connection, Result, OptionalExtension};
-use uuid::Uuid;
 use crate::product::Product;
 use crate::sale::{Sale, SaleItem};
 use chrono::Utc;

@@ -59,30 +59,29 @@ fn add_product(db: &Database) {
 fn list_products(db: &Database) {
     clear_screen();
     display_logo();
-    println!("╔══════════════════════════════════════════════════════════════════════════════╗");
-    println!("║                               CARGO REGISTRY                                  ║");
-    println!("╚══════════════════════════════════════════════════════════════════════════════╝\n");
+    println!("╔══════════════════════════════════════════╗");
+    println!("║            CARGO REGISTRY                ║");
+    println!("╚══════════════════════════════════════════╝\n");
 
     match db.get_products() {
         Ok(products) => {
             if products.is_empty() {
-                println!("No products in inventory.");
+                println!("No cargo items in registry.");
             } else {
-                println!("╔══════════════════════════╦═══════════════════╦════════════╦════════════╗");
-                println!("║          ID             ║       Name        ║   Price    ║ Stock Level║");
-                println!("╠══════════════════════════╬═══════════════════╬════════════╬════════════╣");
-                for product in products {
-                    println!("║ {:<20} ║ {:<15} ║ ${:>8.2} ║ {:>10} ║",
-                        &product.id,
-                        if product.name.len() > 15 { &product.name[..15] } else { &product.name },
-                        product.price,
-                        product.quantity
-                    );
+                for product in &products {
+                    println!("┌─ {} ─", product.name);
+                    println!("│  ID: {}", product.id);
+                    println!("│  Price: ${:.2}", product.price);
+                    println!("│  Stock Level: {}", product.quantity);
+                    if !product.description.is_empty() {
+                        println!("│  Description: {}", product.description);
+                    }
+                    println!("└──────────────────────────────────────");
                 }
-                println!("╚══════════════════════════╩═══════════════════╩════════════╩════════════╝");
+                println!("\nTotal Items in Registry: {}", products.len());
             }
         }
-        Err(e) => println!("Error fetching products: {}", e),
+        Err(e) => println!("Error fetching cargo items: {}", e),
     }
 
     prompt("\nPress Enter to continue...");
@@ -413,58 +412,119 @@ fn record_purchase(db: &mut Database) {
     println!("║             NEW TRADE IN                 ║");
     println!("╚══════════════════════════════════════════╝\n");
 
-    // List available products
-    match db.get_products() {
-        Ok(products) => {
-            if products.is_empty() {
-                println!("No products available. Please add products first.");
+    println!("Select operation:");
+    println!("1. Purchase existing cargo");
+    println!("2. Purchase new cargo");
+    println!("3. Return to menu");
+
+    match prompt("\nEnter your choice (1-3): ").trim() {
+        "1" => {
+            // List existing products
+            match db.get_products() {
+                Ok(products) => {
+                    if products.is_empty() {
+                        println!("\nNo existing cargo items found.");
+                        prompt("\nPress Enter to continue...");
+                        return;
+                    }
+
+                    println!("\nExisting Cargo Items:");
+                    for product in &products {
+                        println!("\n┌─ {} ─", product.name);
+                        println!("│  ID: {}", product.id);
+                        println!("│  Current Price: ${:.2}", product.price);
+                        println!("│  Current Stock: {}", product.quantity);
+                        println!("└──────────────────────────────────────");
+                    }
+
+                    let product_id = prompt("\nEnter Cargo ID: ");
+                    let quantity = prompt("Enter Quantity: ").parse::<i32>().unwrap_or(0);
+                    let purchase_price = prompt("Enter Purchase Price per Unit: $").parse::<f64>().unwrap_or(0.0);
+
+                    if quantity <= 0 || purchase_price <= 0.0 {
+                        println!("\nInvalid quantity or price. Purchase cancelled.");
+                        prompt("\nPress Enter to continue...");
+                        return;
+                    }
+
+                    let total_cost = quantity as f64 * purchase_price;
+
+                    let purchase = Purchase {
+                        product_id,
+                        quantity,
+                        purchase_price,
+                        total_cost,
+                        purchase_date: String::new(),
+                    };
+
+                    match db.record_purchase(&purchase) {
+                        Ok(_) => {
+                            println!("\nPurchase recorded successfully!");
+                            println!("Total Cost: ${:.2}", total_cost);
+                        }
+                        Err(e) => {
+                            println!("\nError recording purchase: {}", e);
+                        }
+                    }
+                }
+                Err(e) => println!("Error fetching products: {}", e),
+            }
+        }
+        "2" => {
+            // Create new product during purchase
+            println!("\nEnter New Cargo Details:");
+            let name = prompt("Name: ");
+            let description = prompt("Description: ");
+            let selling_price = prompt("Selling Price per Unit: $").parse::<f64>().unwrap_or(0.0);
+            let quantity = prompt("Purchase Quantity: ").parse::<i32>().unwrap_or(0);
+            let purchase_price = prompt("Purchase Price per Unit: $").parse::<f64>().unwrap_or(0.0);
+
+            if quantity <= 0 || purchase_price <= 0.0 || selling_price <= 0.0 {
+                println!("\nInvalid quantity or price. Purchase cancelled.");
                 prompt("\nPress Enter to continue...");
                 return;
             }
 
-            println!("Available Products:");
-            println!("------------------");
-            for product in &products {
-                println!("ID: {}", product.id);
-                println!("Name: {}", product.name);
-                println!("Current Price: ${:.2}", product.price);
-                println!("Current Quantity: {}", product.quantity);
-                println!("------------------");
-            }
-
-            // Get purchase details
-            let product_id = prompt("\nEnter Product ID: ");
-            let quantity = prompt("Enter Quantity: ").parse::<i32>().unwrap_or(0);
-            let purchase_price = prompt("Enter Purchase Price per Unit: $").parse::<f64>().unwrap_or(0.0);
-
-            if quantity <= 0 || purchase_price <= 0.0 {
-                println!("Invalid quantity or price. Purchase cancelled.");
-                prompt("\nPress Enter to continue...");
-                return;
-            }
-
-            let total_cost = quantity as f64 * purchase_price;
-
-            let purchase = Purchase {
-                product_id,
-                quantity,
-                purchase_price,
-                total_cost,
-                purchase_date: String::new(), // Will be set by the database
+            // Create new product
+            let product = Product {
+                id: uuid::Uuid::new_v4().to_string(),
+                name: name.clone(),
+                description,
+                price: selling_price,
+                quantity: 0, // Will be updated by record_purchase
+                created_at: Utc::now().timestamp(),
+                updated_at: Utc::now().timestamp(),
             };
 
-            match db.record_purchase(&purchase) {
+            match db.add_product(&product) {
                 Ok(_) => {
-                    println!("\nPurchase recorded successfully!");
-                    println!("Total Cost: ${:.2}", total_cost);
+                    let total_cost = quantity as f64 * purchase_price;
+                    let purchase = Purchase {
+                        product_id: product.id,
+                        quantity,
+                        purchase_price,
+                        total_cost,
+                        purchase_date: String::new(),
+                    };
+
+                    match db.record_purchase(&purchase) {
+                        Ok(_) => {
+                            println!("\nNew cargo created and purchase recorded successfully!");
+                            println!("Total Cost: ${:.2}", total_cost);
+                        }
+                        Err(e) => {
+                            println!("\nError recording purchase: {}", e);
+                        }
+                    }
                 }
                 Err(e) => {
-                    println!("\nError recording purchase: {}", e);
+                    println!("\nError creating new product: {}", e);
                 }
             }
         }
-        Err(e) => {
-            println!("Error fetching products: {}", e);
+        "3" => return,
+        _ => {
+            println!("\nInvalid option.");
         }
     }
 

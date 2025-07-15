@@ -13,6 +13,7 @@ pub struct Product {
 }
 
 impl Product {
+    #[allow(dead_code)]
     pub fn new(name: String, description: String, price: f64, quantity: i32) -> Self {
         let now = chrono::Utc::now().timestamp();
         Self {

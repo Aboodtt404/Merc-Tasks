@@ -1,14 +1,16 @@
 mod product;
 mod db;
 mod sale;
+mod purchase;
 
 use std::io::{self, Write};
 use chrono::{DateTime, Utc};
-use crate::db::Purchase;
 use crate::product::Product;
 use crate::sale::{Sale, SaleItem};
 use crate::db::Database;
+use crate::purchase::Purchase;
 
+#[allow(dead_code)]
 fn clear_screen() {
     print!("\x1B[2J\x1B[1;1H");
     io::stdout().flush().unwrap();
@@ -29,6 +31,7 @@ fn prompt(message: &str) -> String {
     input.trim().to_string()
 }
 
+#[allow(dead_code)]
 fn add_product(db: &Database) {
     clear_screen();
     display_logo();
@@ -276,33 +279,34 @@ fn record_sale(db: &mut Database) {
 fn view_sales(db: &Database) {
     clear_screen();
     display_logo();
-    println!("\nSales History");
-    println!("-------------");
+    println!("╔══════════════════════════════════════════╗");
+    println!("║          TRADING HISTORY                 ║");
+    println!("╚══════════════════════════════════════════╝\n");
 
     match db.get_all_sales() {
         Ok(sales) => {
             if sales.is_empty() {
-                println!("No sales recorded.");
+                println!("No trades recorded yet.");
             } else {
-                for sale in sales {
-                    let date: DateTime<Utc> = DateTime::from_timestamp(sale.timestamp, 0).unwrap();
-                    println!("\nSale ID: {}", sale.id);
-                    println!("Date: {}", date.format("%Y-%m-%d %H:%M:%S"));
-                    println!("Items:");
-                    for item in sale.items {
-                        if let Ok(Some(product)) = db.get_product(&item.product_id) {
-                            println!("  - {} x {} (${:.2} each)", product.name, item.quantity, item.unit_price);
-                        }
-                    }
-                    println!("Total Amount: ${:.2}", sale.total_amount);
-                    println!("-------------");
+                for (product_name, quantity, total_price, sale_date) in sales {
+                    println!("┌─ Trade Details ─");
+                    println!("│  Product: {}", product_name);
+                    println!("│  Quantity: {}", quantity);
+                    println!("│  Total Price: ${:.2}", total_price);
+                    println!("│  Date: {}", sale_date);
+                    println!("└──────────────────────────────────────\n");
                 }
             }
         }
-        Err(e) => eprintln!("Error fetching sales: {}", e),
+        Err(_e) => {
+            println!("No trades recorded yet.");
+            println!("Press Enter to continue...");
+            prompt("");
+            return;
+        }
     }
 
-    println!("\nPress Enter to continue...");
+    println!("Press Enter to continue...");
     prompt("");
 }
 
@@ -313,9 +317,10 @@ fn display_main_menu() {
     println!("║  [1] Cargo Management                    ║");
     println!("║  [2] Trading Operations                  ║");
     println!("║  [3] Supply Chain                        ║");
-    println!("║  [4] Exit Terminal                       ║");
+    println!("║  [4] Reports                             ║");
+    println!("║  [5] Exit Terminal                       ║");
     println!("╚══════════════════════════════════════════╝");
-    println!("\nEnter your choice (1-4): ");
+    println!("\nEnter your choice (1-5): ");
 }
 
 fn display_product_menu() {
@@ -341,6 +346,18 @@ fn display_sales_menu() {
     println!("\nEnter your choice (1-3): ");
 }
 
+fn display_reports_menu() {
+    println!("╔══════════════════════════════════════════╗");
+    println!("║               REPORTS                    ║");
+    println!("╠══════════════════════════════════════════╣");
+    println!("║  [1] Inventory Report                    ║");
+    println!("║  [2] Sales Report                        ║");
+    println!("║  [3] Purchase History Report             ║");
+    println!("║  [4] Return to Console                   ║");
+    println!("╚══════════════════════════════════════════╝");
+    println!("\nEnter your choice (1-4): ");
+}
+
 fn display_purchase_menu() {
     println!("╔══════════════════════════════════════════╗");
     println!("║            SUPPLY CHAIN                  ║");
@@ -352,6 +369,7 @@ fn display_purchase_menu() {
     println!("\nEnter your choice (1-3): ");
 }
 
+#[allow(dead_code)]
 fn display_product_details(product: &Product) {
     println!("╔══════════════════════════════════════════╗");
     println!("║            CARGO DETAILS                 ║");
@@ -403,6 +421,26 @@ fn handle_sales_menu(db: &mut Database) {
     }
 }
 
+fn handle_reports_menu(db: &mut Database) {
+    loop {
+        clear_screen();
+        display_logo();
+        display_reports_menu();
+
+        let choice = prompt("");
+        match choice.trim() {
+            "1" => list_products(db),
+            "2" => view_sales(db),
+            "3" => view_purchases(db),
+            "4" => break,
+            _ => {
+                println!("Invalid option. Press Enter to continue...");
+                prompt("");
+            }
+        }
+    }
+}
+
 fn record_purchase(db: &mut Database) {
     clear_screen();
     display_logo();
@@ -417,7 +455,6 @@ fn record_purchase(db: &mut Database) {
 
     match prompt("\nEnter your choice (1-3): ").trim() {
         "1" => {
-            // List existing products
             match db.get_products() {
                 Ok(products) => {
                     if products.is_empty() {
@@ -445,15 +482,22 @@ fn record_purchase(db: &mut Database) {
                         return;
                     }
 
+                    if let Ok(Some(mut product)) = db.get_product(&product_id) {
+                        product.quantity += quantity;
+                        if let Err(e) = db.update_product(&product) {
+                            println!("\nError updating product quantity: {}", e);
+                            prompt("\nPress Enter to continue...");
+                            return;
+                        }
+                    } else {
+                        println!("\nProduct with ID {} not found.", product_id);
+                        prompt("\nPress Enter to continue...");
+                        return;
+                    }
+                    
                     let total_cost = quantity as f64 * purchase_price;
 
-                    let purchase = Purchase {
-                        product_id,
-                        quantity,
-                        purchase_price,
-                        total_cost,
-                        purchase_date: String::new(),
-                    };
+                    let purchase = Purchase::new(product_id, quantity, purchase_price);
 
                     match db.record_purchase(&purchase) {
                         Ok(_) => {
@@ -469,7 +513,6 @@ fn record_purchase(db: &mut Database) {
             }
         }
         "2" => {
-            // Create new product during purchase
             println!("\nEnter New Cargo Details:");
             let name = prompt("Name: ");
             let description = prompt("Description: ");
@@ -483,32 +526,31 @@ fn record_purchase(db: &mut Database) {
                 return;
             }
 
-            // Create new product
-            let product = Product {
+            let mut product = Product {
                 id: uuid::Uuid::new_v4().to_string(),
                 name: name.clone(),
                 description,
                 price: selling_price,
-                quantity: 0, // Will be updated by record_purchase
+                quantity: 0,
                 created_at: Utc::now().timestamp(),
                 updated_at: Utc::now().timestamp(),
             };
 
             match db.add_product(&product) {
                 Ok(_) => {
-                    let total_cost = quantity as f64 * purchase_price;
-                    let purchase = Purchase {
-                        product_id: product.id,
-                        quantity,
-                        purchase_price,
-                        total_cost,
-                        purchase_date: String::new(),
-                    };
+                    product.quantity += quantity;
+                    if let Err(e) = db.update_product(&product) {
+                        println!("\nError updating product quantity: {}", e);
+                        prompt("\nPress Enter to continue...");
+                        return;
+                    }
+
+                    let purchase = Purchase::new(product.id.clone(), quantity, purchase_price);
 
                     match db.record_purchase(&purchase) {
                         Ok(_) => {
                             println!("\nNew cargo created and purchase recorded successfully!");
-                            println!("Total Cost: ${:.2}", total_cost);
+                            println!("Total Cost: ${:.2}", purchase.total_cost);
                         }
                         Err(e) => {
                             println!("\nError recording purchase: {}", e);
@@ -534,18 +576,24 @@ fn view_purchases(db: &Database) {
     display_logo();
     println!("=== Purchase History ===\n");
 
-    match db.get_purchases() {
+    match db.get_all_purchases() {
         Ok(purchases) => {
             if purchases.is_empty() {
                 println!("No purchase history available.");
             } else {
                 let mut total_cost = 0.0;
-                for (purchase, product_name) in purchases {
+                for purchase in purchases {
+                    let product_name = db.get_product(&purchase.product_id)
+                        .ok()
+                        .flatten()
+                        .map_or_else(|| "Unknown".to_string(), |p| p.name);
+
                     println!("Product: {}", product_name);
                     println!("Quantity: {}", purchase.quantity);
                     println!("Purchase Price: ${:.2}/unit", purchase.purchase_price);
                     println!("Total Cost: ${:.2}", purchase.total_cost);
-                    println!("Date: {}", purchase.purchase_date);
+                    let dt = DateTime::<Utc>::from_timestamp(purchase.purchase_date, 0).unwrap();
+                    println!("Date: {}", dt.format("%Y-%m-%d %H:%M:%S"));
                     println!("------------------");
                     total_cost += purchase.total_cost;
                 }
@@ -579,6 +627,7 @@ fn handle_purchase_menu(db: &mut Database) {
     }
 }
 
+#[allow(dead_code)]
 fn display_error(message: &str) {
     println!("\n╔══════════════════════════════════════════╗");
     println!("║              RUNTIME ERROR               ║");
@@ -587,6 +636,7 @@ fn display_error(message: &str) {
     println!("╚══════════════════════════════════════════╝");
 }
 
+#[allow(dead_code)]
 fn display_success(message: &str) {
     println!("\n╔══════════════════════════════════════════╗");
     println!("║           OPERATION SUCCESS              ║");
@@ -614,7 +664,8 @@ fn main() {
             "1" => handle_product_menu(&mut db),
             "2" => handle_sales_menu(&mut db),
             "3" => handle_purchase_menu(&mut db),
-            "4" => {
+            "4" => handle_reports_menu(&mut db),
+            "5" => {
                 println!("\nGoodbye!");
                 break;
             }

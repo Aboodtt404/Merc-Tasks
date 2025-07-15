@@ -1,15 +1,8 @@
 use rusqlite::{params, Connection, Result, OptionalExtension};
 use crate::product::Product;
 use crate::sale::{Sale, SaleItem};
+use crate::purchase::Purchase;
 use chrono::Utc;
-
-pub struct Purchase {
-    pub product_id: String,
-    pub quantity: i32,
-    pub purchase_price: f64,
-    pub total_cost: f64,
-    pub purchase_date: String,
-}
 
 pub struct Database {
     conn: Connection,
@@ -53,12 +46,12 @@ impl Database {
 
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS purchases (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id TEXT PRIMARY KEY,
                 product_id TEXT NOT NULL,
                 quantity INTEGER NOT NULL,
                 purchase_price REAL NOT NULL,
                 total_cost REAL NOT NULL,
-                purchase_date TEXT NOT NULL,
+                purchase_date INTEGER NOT NULL,
                 FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
             )",
             [],
@@ -169,29 +162,28 @@ impl Database {
         let tx = self.conn.transaction()?;
 
         for item in &sale.items {
-            let rows_updated = tx.execute(
-                "UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?",
-                params![item.quantity, item.product_id, item.quantity],
-            )?;
+            let mut stmt = tx.prepare("SELECT quantity FROM products WHERE id = ?")?;
+            let current_quantity: i32 = stmt.query_row([&item.product_id], |row| row.get(0))?;
 
-            if rows_updated == 0 {
+            if current_quantity < item.quantity {
                 return Err(rusqlite::Error::InvalidParameterCount(0, 1));
             }
 
             tx.execute(
-                "DELETE FROM products WHERE id = ? AND quantity = 0",
-                params![item.product_id],
+                "UPDATE products SET quantity = quantity - ? WHERE id = ?",
+                params![item.quantity, item.product_id],
+            )?;
+
+            tx.execute(
+                "INSERT INTO sales (product_id, quantity, total_price, sale_date) 
+                 VALUES (?, ?, ?, datetime('now'))",
+                params![
+                    item.product_id,
+                    item.quantity,
+                    item.total_price,
+                ],
             )?;
         }
-
-        tx.execute(
-            "INSERT INTO sales (product_id, quantity, total_price, sale_date) VALUES (?, ?, ?, datetime('now'))",
-            params![
-                sale.items[0].product_id,
-                sale.items[0].quantity,
-                sale.total_amount,
-            ],
-        )?;
 
         tx.commit()?;
         Ok(())
@@ -200,23 +192,16 @@ impl Database {
     pub fn record_purchase(&mut self, purchase: &Purchase) -> Result<()> {
         let tx = self.conn.transaction()?;
 
-        let rows_updated = tx.execute(
-            "UPDATE products SET quantity = quantity + ? WHERE id = ?",
-            params![purchase.quantity, purchase.product_id],
-        )?;
-
-        if rows_updated == 0 {
-            return Err(rusqlite::Error::InvalidParameterCount(0, 1));
-        }
-
         tx.execute(
-            "INSERT INTO purchases (product_id, quantity, purchase_price, total_cost, purchase_date) 
-             VALUES (?, ?, ?, ?, datetime('now'))",
+            "INSERT INTO purchases (id, product_id, quantity, purchase_price, total_cost, purchase_date) 
+             VALUES (?, ?, ?, ?, ?, ?)",
             params![
+                purchase.id,
                 purchase.product_id,
                 purchase.quantity,
                 purchase.purchase_price,
                 purchase.total_cost,
+                purchase.purchase_date,
             ],
         )?;
 
@@ -224,6 +209,7 @@ impl Database {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn get_sale(&self, id: &str) -> Result<Option<Sale>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, total_amount, total_profit, timestamp FROM sales WHERE id = ?1"
@@ -258,63 +244,42 @@ impl Database {
         Ok(sale)
     }
 
-    pub fn get_all_sales(&self) -> Result<Vec<Sale>> {
+    pub fn get_all_sales(&self) -> Result<Vec<(String, i32, f64, String)>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, total_amount, total_profit, timestamp FROM sales ORDER BY timestamp DESC"
+            "SELECT s.product_id, s.quantity, s.total_price, s.sale_date, p.name 
+             FROM sales s
+             JOIN products p ON s.product_id = p.id
+             ORDER BY s.sale_date DESC"
         )?;
 
-        let sales_iter = stmt.query_map([], |row| {
-            let sale_id: String = row.get(0)?;
-            
-            let mut stmt = self.conn.prepare(
-                "SELECT product_id, quantity, unit_price, total_price 
-                 FROM sale_items WHERE sale_id = ?1"
-            )?;
-            
-            let items: Result<Vec<SaleItem>> = stmt.query_map([&sale_id], |row| {
-                Ok(SaleItem {
-                    product_id: row.get(0)?,
-                    quantity: row.get(1)?,
-                    unit_price: row.get(2)?,
-                    total_price: row.get(3)?,
-                })
-            })?.collect();
-
-            Ok(Sale {
-                id: sale_id,
-                items: items?,
-                total_amount: row.get(1)?,
-                total_profit: row.get(2)?,
-                timestamp: row.get(3)?,
-            })
+        let sales = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(4)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+            ))
         })?;
 
-        let mut sales = Vec::new();
-        for sale in sales_iter {
-            sales.push(sale?);
-        }
-        Ok(sales)
+        sales.collect()
     }
 
-    pub fn get_purchases(&self) -> Result<Vec<(Purchase, String)>> {
+    pub fn get_all_purchases(&self) -> Result<Vec<Purchase>> {
         let mut stmt = self.conn.prepare(
-            "SELECT p.product_id, p.quantity, p.purchase_price, p.total_cost, p.purchase_date, pr.name 
-             FROM purchases p 
-             JOIN products pr ON p.product_id = pr.id 
-             ORDER BY p.purchase_date DESC"
+            "SELECT id, product_id, quantity, purchase_price, total_cost, purchase_date 
+             FROM purchases
+             ORDER BY purchase_date DESC"
         )?;
 
         let purchases = stmt.query_map([], |row| {
-            Ok((
-                Purchase {
-                    product_id: row.get(0)?,
-                    quantity: row.get(1)?,
-                    purchase_price: row.get(2)?,
-                    total_cost: row.get(3)?,
-                    purchase_date: row.get(4)?,
-                },
-                row.get(5)?,
-            ))
+            Ok(Purchase {
+                id: row.get(0)?,
+                product_id: row.get(1)?,
+                quantity: row.get(2)?,
+                purchase_price: row.get(3)?,
+                total_cost: row.get(4)?,
+                purchase_date: row.get(5)?,
+            })
         })?;
 
         purchases.collect()

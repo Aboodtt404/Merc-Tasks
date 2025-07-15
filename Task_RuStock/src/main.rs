@@ -15,15 +15,10 @@ fn clear_screen() {
 }
 
 fn display_logo() {
-    println!(r#"
-__________       _________ __                 __    
-\______   \__ __/   _____//  |_  ____   ____ |  | __
- |       _/  |  \_____  \\   __\/  _ \_/ ___\|  |/ /
- |    |   \  |  /        \|  | (  <_> )  \___|    < 
- |____|_  /____/_______  /|__|  \____/ \___  >__|_ \
-        \/             \/                  \/     \/                                           
-    RuSTOCK Inventory Management System
-    "#);
+    println!("╔══════════════════════════════════════════╗");
+    println!("║             R u S T O C K                ║");
+    println!("║      Inventory Management System         ║");
+    println!("╚══════════════════════════════════════════╝\n");
 }
 
 fn prompt(message: &str) -> String {
@@ -64,29 +59,33 @@ fn add_product(db: &Database) {
 fn list_products(db: &Database) {
     clear_screen();
     display_logo();
-    println!("\nProduct List");
-    println!("------------");
+    println!("╔══════════════════════════════════════════════════════════════════════════════╗");
+    println!("║                               CARGO REGISTRY                                  ║");
+    println!("╚══════════════════════════════════════════════════════════════════════════════╝\n");
 
-    match db.get_all_products() {
+    match db.get_products() {
         Ok(products) => {
             if products.is_empty() {
-                println!("No products found.");
+                println!("No products in inventory.");
             } else {
+                println!("╔══════════════════════════╦═══════════════════╦════════════╦════════════╗");
+                println!("║          ID             ║       Name        ║   Price    ║ Stock Level║");
+                println!("╠══════════════════════════╬═══════════════════╬════════════╬════════════╣");
                 for product in products {
-                    println!("\nID: {}", product.id);
-                    println!("Name: {}", product.name);
-                    println!("Description: {}", product.description);
-                    println!("Price: ${:.2}", product.price);
-                    println!("Quantity: {}", product.quantity);
-                    println!("------------------------");
+                    println!("║ {:<20} ║ {:<15} ║ ${:>8.2} ║ {:>10} ║",
+                        &product.id,
+                        if product.name.len() > 15 { &product.name[..15] } else { &product.name },
+                        product.price,
+                        product.quantity
+                    );
                 }
+                println!("╚══════════════════════════╩═══════════════════╩════════════╩════════════╝");
             }
         }
-        Err(e) => eprintln!("Error fetching products: {}", e),
+        Err(e) => println!("Error fetching products: {}", e),
     }
 
-    println!("\nPress Enter to continue...");
-    prompt("");
+    prompt("\nPress Enter to continue...");
 }
 
 fn edit_product(db: &Database) {
@@ -173,8 +172,9 @@ fn delete_product(db: &Database) {
 fn record_sale(db: &mut Database) {
     clear_screen();
     display_logo();
-    println!("\nRecord Sale");
-    println!("-----------");
+    println!("╔══════════════════════════════════════════╗");
+    println!("║             NEW TRADE OUT                ║");
+    println!("╚══════════════════════════════════════════╝\n");
 
     let mut sale_items = Vec::new();
     loop {
@@ -308,42 +308,62 @@ fn view_sales(db: &Database) {
 }
 
 fn display_main_menu() {
-    println!("Main Menu");
-    println!("---------");
-    println!("1. Product Management");
-    println!("2. Sales Management");
-    println!("3. Purchase Management");
-    println!("4. Exit");
-    println!("\nSelect an option: ");
+    println!("╔══════════════════════════════════════════╗");
+    println!("║            RuSTOCK CONSOLE               ║");
+    println!("╠══════════════════════════════════════════╣");
+    println!("║  [1] Cargo Management                    ║");
+    println!("║  [2] Trading Operations                  ║");
+    println!("║  [3] Supply Chain                        ║");
+    println!("║  [4] Exit Terminal                       ║");
+    println!("╚══════════════════════════════════════════╝");
+    println!("\nEnter your choice (1-4): ");
 }
 
 fn display_product_menu() {
-    println!("Product Management");
-    println!("-----------------");
-    println!("1. Add Product");
-    println!("2. List Products");
-    println!("3. Edit Product");
-    println!("4. Delete Product");
-    println!("5. Back to Main Menu");
-    println!("\nSelect an option: ");
+    println!("╔══════════════════════════════════════════╗");
+    println!("║            CARGO MANAGEMENT              ║");
+    println!("╠══════════════════════════════════════════╣");
+    println!("║  [1] Create New Cargo                    ║");
+    println!("║  [2] View Cargo Registry                 ║");
+    println!("║  [3] Modify Cargo                        ║");
+    println!("║  [4] Remove Cargo                        ║");
+    println!("║  [5] Return to Console                   ║");
+    println!("╚══════════════════════════════════════════╝");
+    println!("\nEnter your choice (1-5): ");
 }
 
 fn display_sales_menu() {
-    println!("Sales Management");
-    println!("---------------");
-    println!("1. Record Sale");
-    println!("2. View Sales");
-    println!("3. Back to Main Menu");
-    println!("\nSelect an option: ");
+    println!("╔══════════════════════════════════════════╗");
+    println!("║          TRADING OPERATIONS              ║");
+    println!("╠══════════════════════════════════════════╣");
+    println!("║  [1] New Trade Out                       ║");
+    println!("║  [2] View Trade History                  ║");
+    println!("║  [3] Return to Console                   ║");
+    println!("╚══════════════════════════════════════════╝");
+    println!("\nEnter your choice (1-3): ");
 }
 
 fn display_purchase_menu() {
-    println!("Purchase Management");
-    println!("------------------");
-    println!("1. Record Purchase");
-    println!("2. View Purchases");
-    println!("3. Back to Main Menu");
-    println!("\nSelect an option: ");
+    println!("╔══════════════════════════════════════════╗");
+    println!("║            SUPPLY CHAIN                  ║");
+    println!("╠══════════════════════════════════════════╣");
+    println!("║  [1] New Trade In                        ║");
+    println!("║  [2] View Supply History                 ║");
+    println!("║  [3] Return to Console                   ║");
+    println!("╚══════════════════════════════════════════╝");
+    println!("\nEnter your choice (1-3): ");
+}
+
+fn display_product_details(product: &Product) {
+    println!("╔══════════════════════════════════════════╗");
+    println!("║            CARGO DETAILS                 ║");
+    println!("╠══════════════════════════════════════════╣");
+    println!("║  ID: {}", product.id);
+    println!("║  Name: {}", product.name);
+    println!("║  Description: {}", product.description);
+    println!("║  Price: ${:.2}", product.price);
+    println!("║  Stock Level: {}", product.quantity);
+    println!("╚══════════════════════════════════════════╝");
 }
 
 fn handle_product_menu(db: &mut Database) {
@@ -389,7 +409,9 @@ fn handle_sales_menu(db: &mut Database) {
 fn record_purchase(db: &mut Database) {
     clear_screen();
     display_logo();
-    println!("=== Record Purchase ===\n");
+    println!("╔══════════════════════════════════════════╗");
+    println!("║             NEW TRADE IN                 ║");
+    println!("╚══════════════════════════════════════════╝\n");
 
     // List available products
     match db.get_products() {
@@ -497,6 +519,22 @@ fn handle_purchase_menu(db: &mut Database) {
             }
         }
     }
+}
+
+fn display_error(message: &str) {
+    println!("\n╔══════════════════════════════════════════╗");
+    println!("║              RUNTIME ERROR               ║");
+    println!("╠══════════════════════════════════════════╣");
+    println!("║  {:<38} ║", message);
+    println!("╚══════════════════════════════════════════╝");
+}
+
+fn display_success(message: &str) {
+    println!("\n╔══════════════════════════════════════════╗");
+    println!("║           OPERATION SUCCESS              ║");
+    println!("╠══════════════════════════════════════════╣");
+    println!("║  {:<38} ║", message);
+    println!("╚══════════════════════════════════════════╝");
 }
 
 fn main() {

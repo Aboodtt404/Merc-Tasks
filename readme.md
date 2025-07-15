@@ -9,8 +9,7 @@ A command-line task manager that allows users to:
 - Mark tasks as complete
 - Delete tasks
 - View all tasks with their status
-
-The system uses emojis to make the interface more user-friendly and includes basic error handling for invalid inputs.
+  
 
 ## Task 3: Banking System
 A basic banking system that implements:
@@ -19,7 +18,6 @@ A basic banking system that implements:
 - Balance checking
 - Error handling for invalid transactions
 
-The system uses Rust's trait system to define standard account behavior and includes basic validation for all transactions.
 
 ## Task PassVault: Password Manager
 A secure command-line password manager that enables users to:
@@ -28,6 +26,12 @@ A secure command-line password manager that enables users to:
 - Search for specific service credentials
 - Secure data storage using JSON format
 
-The system implements proper error handling, data persistence, and uses the serde framework for JSON serialization/deserialization.
+## Task RuSTOCK: Inventory Management System
+A comprehensive store inventory management system that provides:
+- Complete product inventory management (CRUD operations)
+- Secure data persistence using SQLite database
+- Detailed product tracking (name, description, price, quantity)
+- User-friendly terminal interface with ASCII art logo
+- Robust input validation and error handling
 
 To be continued...

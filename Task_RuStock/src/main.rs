@@ -1,8 +1,11 @@
 mod product;
 mod db;
+mod sale;
 
 use std::io::{self, Write};
+use chrono::{DateTime, Utc};
 use product::Product;
+use sale::{Sale, SaleItem};
 use db::Database;
 
 fn clear_screen() {
@@ -166,11 +169,217 @@ fn delete_product(db: &Database) {
     prompt("");
 }
 
+fn record_sale(db: &mut Database) {
+    clear_screen();
+    display_logo();
+    println!("\nRecord Sale");
+    println!("-----------");
+
+    let mut sale_items = Vec::new();
+    loop {
+        match db.get_all_products() {
+            Ok(products) => {
+                if products.is_empty() {
+                    println!("No products available.");
+                    return;
+                }
+                println!("\nAvailable Products:");
+                println!("------------------");
+                for product in &products {
+                    println!("ID: {}", product.id);
+                    println!("Name: {}", product.name);
+                    println!("Price: ${:.2}", product.price);
+                    println!("Available Quantity: {}", product.quantity);
+                    println!("------------------");
+                }
+
+                let product_id = prompt("Enter Product ID (or press Enter to finish): ");
+                if product_id.is_empty() {
+                    break;
+                }
+
+                if let Ok(Some(product)) = db.get_product(&product_id) {
+                    let quantity_str = prompt("Enter quantity: ");
+                    if let Ok(quantity) = quantity_str.parse::<i32>() {
+                        if quantity <= 0 {
+                            println!("Quantity must be positive.");
+                            continue;
+                        }
+                        if quantity > product.quantity {
+                            println!("Insufficient stock. Available: {}", product.quantity);
+                            continue;
+                        }
+
+                        let unit_price = product.price;
+                        let total_price = unit_price * quantity as f64;
+
+                        sale_items.push(SaleItem {
+                            product_id: product.id,
+                            quantity,
+                            unit_price,
+                            total_price,
+                        });
+
+                        println!("Item added to sale.");
+                    } else {
+                        println!("Invalid quantity.");
+                    }
+                } else {
+                    println!("Product not found.");
+                }
+            }
+            Err(e) => {
+                eprintln!("Error fetching products: {}", e);
+                return;
+            }
+        }
+    }
+
+    if sale_items.is_empty() {
+        println!("No items added to sale.");
+        return;
+    }
+
+    let sale = Sale::new(sale_items);
+    
+    println!("\nSale Summary:");
+    println!("-------------");
+    for item in &sale.items {
+        if let Ok(Some(product)) = db.get_product(&item.product_id) {
+            println!("Product: {}", product.name);
+            println!("Quantity: {}", item.quantity);
+            println!("Unit Price: ${:.2}", item.unit_price);
+            println!("Total: ${:.2}", item.total_price);
+            println!("-------------");
+        }
+    }
+    println!("Total Amount: ${:.2}", sale.total_amount);
+
+    if prompt("\nConfirm sale? (y/N): ").to_lowercase() == "y" {
+        match sale.validate() {
+            Ok(()) => {
+                match db.record_sale(&sale) {
+                    Ok(()) => println!("\nSale recorded successfully!"),
+                    Err(e) => eprintln!("\nError recording sale: {}", e),
+                }
+            }
+            Err(e) => eprintln!("\nValidation error: {}", e),
+        }
+    } else {
+        println!("\nSale cancelled.");
+    }
+
+    println!("\nPress Enter to continue...");
+    prompt("");
+}
+
+fn view_sales(db: &Database) {
+    clear_screen();
+    display_logo();
+    println!("\nSales History");
+    println!("-------------");
+
+    match db.get_all_sales() {
+        Ok(sales) => {
+            if sales.is_empty() {
+                println!("No sales recorded.");
+            } else {
+                for sale in sales {
+                    let date: DateTime<Utc> = DateTime::from_timestamp(sale.timestamp, 0).unwrap();
+                    println!("\nSale ID: {}", sale.id);
+                    println!("Date: {}", date.format("%Y-%m-%d %H:%M:%S"));
+                    println!("Items:");
+                    for item in sale.items {
+                        if let Ok(Some(product)) = db.get_product(&item.product_id) {
+                            println!("  - {} x {} (${:.2} each)", product.name, item.quantity, item.unit_price);
+                        }
+                    }
+                    println!("Total Amount: ${:.2}", sale.total_amount);
+                    println!("-------------");
+                }
+            }
+        }
+        Err(e) => eprintln!("Error fetching sales: {}", e),
+    }
+
+    println!("\nPress Enter to continue...");
+    prompt("");
+}
+
+fn display_main_menu() {
+    println!("Main Menu");
+    println!("---------");
+    println!("1. Product Management");
+    println!("2. Sales Management");
+    println!("3. Exit");
+    println!("\nSelect an option: ");
+}
+
+fn display_product_menu() {
+    println!("Product Management");
+    println!("-----------------");
+    println!("1. Add Product");
+    println!("2. List Products");
+    println!("3. Edit Product");
+    println!("4. Delete Product");
+    println!("5. Back to Main Menu");
+    println!("\nSelect an option: ");
+}
+
+fn display_sales_menu() {
+    println!("Sales Management");
+    println!("---------------");
+    println!("1. Record Sale");
+    println!("2. View Sales");
+    println!("3. Back to Main Menu");
+    println!("\nSelect an option: ");
+}
+
+fn handle_product_menu(db: &mut Database) {
+    loop {
+        clear_screen();
+        display_logo();
+        display_product_menu();
+
+        let choice = prompt("");
+        match choice.trim() {
+            "1" => add_product(db),
+            "2" => list_products(db),
+            "3" => edit_product(db),
+            "4" => delete_product(db),
+            "5" => break,
+            _ => {
+                println!("Invalid option. Press Enter to continue...");
+                prompt("");
+            }
+        }
+    }
+}
+
+fn handle_sales_menu(db: &mut Database) {
+    loop {
+        clear_screen();
+        display_logo();
+        display_sales_menu();
+
+        let choice = prompt("");
+        match choice.trim() {
+            "1" => record_sale(db),
+            "2" => view_sales(db),
+            "3" => break,
+            _ => {
+                println!("Invalid option. Press Enter to continue...");
+                prompt("");
+            }
+        }
+    }
+}
+
 fn main() {
-    let db = match Database::new() {
+    let mut db = match Database::new() {
         Ok(db) => db,
         Err(e) => {
-            eprintln!("Error initializing database: {}", e);
+            eprintln!("Failed to initialize database: {}", e);
             return;
         }
     };
@@ -178,26 +387,18 @@ fn main() {
     loop {
         clear_screen();
         display_logo();
-        
-        println!("\nMain Menu");
-        println!("---------");
-        println!("1. Add Product");
-        println!("2. List Products");
-        println!("3. Edit Product");
-        println!("4. Delete Product");
-        println!("5. Exit");
+        display_main_menu();
 
-        match prompt("\nSelect an option: ").as_str() {
-            "1" => add_product(&db),
-            "2" => list_products(&db),
-            "3" => edit_product(&db),
-            "4" => delete_product(&db),
-            "5" => {
+        let choice = prompt("");
+        match choice.trim() {
+            "1" => handle_product_menu(&mut db),
+            "2" => handle_sales_menu(&mut db),
+            "3" => {
                 println!("\nGoodbye!");
                 break;
             }
             _ => {
-                println!("\nInvalid option. Press Enter to continue...");
+                println!("Invalid option. Press Enter to continue...");
                 prompt("");
             }
         }

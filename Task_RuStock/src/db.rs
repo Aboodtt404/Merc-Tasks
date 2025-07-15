@@ -16,19 +16,19 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Result<Database> {
         let conn = Connection::open("rustock.db")?;
         let db = Database { conn };
-        db.init()?;
+        db.init_db()?;
         Ok(db)
     }
 
-    fn init(&self) -> Result<()> {
+    fn init_db(&self) -> Result<()> {
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS products (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
-                description TEXT NOT NULL,
+                description TEXT,
                 price REAL NOT NULL,
                 quantity INTEGER NOT NULL,
                 created_at INTEGER NOT NULL,
@@ -39,45 +39,7 @@ impl Database {
 
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS sales (
-                id TEXT PRIMARY KEY,
-                total_amount REAL NOT NULL,
-                total_profit REAL NOT NULL,
-                timestamp INTEGER NOT NULL
-            )",
-            [],
-        )?;
-
-        self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS sale_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                sale_id TEXT NOT NULL,
-                product_id TEXT NOT NULL,
-                quantity INTEGER NOT NULL,
-                unit_price REAL NOT NULL,
-                total_price REAL NOT NULL,
-                FOREIGN KEY (sale_id) REFERENCES sales(id),
-                FOREIGN KEY (product_id) REFERENCES products(id)
-            )",
-            [],
-        )?;
-
-        Ok(())
-    }
-
-    pub fn init_db(&self) -> Result<()> {
-        self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS products (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                description TEXT,
-                price REAL NOT NULL,
-                quantity INTEGER NOT NULL
-            )",
-            [],
-        )?;
-
-        self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS sales (
                 product_id TEXT NOT NULL,
                 quantity INTEGER NOT NULL,
                 total_price REAL NOT NULL,
@@ -89,6 +51,7 @@ impl Database {
 
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS purchases (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 product_id TEXT NOT NULL,
                 quantity INTEGER NOT NULL,
                 purchase_price REAL NOT NULL,
@@ -137,7 +100,18 @@ impl Database {
     }
 
     pub fn delete_product(&self, id: &str) -> Result<()> {
-        self.conn.execute("DELETE FROM products WHERE id = ?1", [id])?;
+        let tx = self.conn.transaction()?;
+
+        // Delete related sales records
+        tx.execute("DELETE FROM sales WHERE product_id = ?1", [id])?;
+
+        // Delete related purchase records
+        tx.execute("DELETE FROM purchases WHERE product_id = ?1", [id])?;
+
+        // Finally delete the product
+        tx.execute("DELETE FROM products WHERE id = ?1", [id])?;
+
+        tx.commit()?;
         Ok(())
     }
 

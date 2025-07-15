@@ -4,9 +4,10 @@ mod sale;
 
 use std::io::{self, Write};
 use chrono::{DateTime, Utc};
-use product::Product;
-use sale::{Sale, SaleItem};
-use db::Database;
+use crate::db::Purchase;
+use crate::product::Product;
+use crate::sale::{Sale, SaleItem};
+use crate::db::Database;
 
 fn clear_screen() {
     print!("\x1B[2J\x1B[1;1H");
@@ -311,7 +312,8 @@ fn display_main_menu() {
     println!("---------");
     println!("1. Product Management");
     println!("2. Sales Management");
-    println!("3. Exit");
+    println!("3. Purchase Management");
+    println!("4. Exit");
     println!("\nSelect an option: ");
 }
 
@@ -331,6 +333,15 @@ fn display_sales_menu() {
     println!("---------------");
     println!("1. Record Sale");
     println!("2. View Sales");
+    println!("3. Back to Main Menu");
+    println!("\nSelect an option: ");
+}
+
+fn display_purchase_menu() {
+    println!("Purchase Management");
+    println!("------------------");
+    println!("1. Record Purchase");
+    println!("2. View Purchases");
     println!("3. Back to Main Menu");
     println!("\nSelect an option: ");
 }
@@ -375,6 +386,119 @@ fn handle_sales_menu(db: &mut Database) {
     }
 }
 
+fn record_purchase(db: &mut Database) {
+    clear_screen();
+    display_logo();
+    println!("=== Record Purchase ===\n");
+
+    // List available products
+    match db.get_products() {
+        Ok(products) => {
+            if products.is_empty() {
+                println!("No products available. Please add products first.");
+                prompt("\nPress Enter to continue...");
+                return;
+            }
+
+            println!("Available Products:");
+            println!("------------------");
+            for product in &products {
+                println!("ID: {}", product.id);
+                println!("Name: {}", product.name);
+                println!("Current Price: ${:.2}", product.price);
+                println!("Current Quantity: {}", product.quantity);
+                println!("------------------");
+            }
+
+            // Get purchase details
+            let product_id = prompt("\nEnter Product ID: ");
+            let quantity = prompt("Enter Quantity: ").parse::<i32>().unwrap_or(0);
+            let purchase_price = prompt("Enter Purchase Price per Unit: $").parse::<f64>().unwrap_or(0.0);
+
+            if quantity <= 0 || purchase_price <= 0.0 {
+                println!("Invalid quantity or price. Purchase cancelled.");
+                prompt("\nPress Enter to continue...");
+                return;
+            }
+
+            let total_cost = quantity as f64 * purchase_price;
+
+            let purchase = Purchase {
+                product_id,
+                quantity,
+                purchase_price,
+                total_cost,
+                purchase_date: String::new(), // Will be set by the database
+            };
+
+            match db.record_purchase(&purchase) {
+                Ok(_) => {
+                    println!("\nPurchase recorded successfully!");
+                    println!("Total Cost: ${:.2}", total_cost);
+                }
+                Err(e) => {
+                    println!("\nError recording purchase: {}", e);
+                }
+            }
+        }
+        Err(e) => {
+            println!("Error fetching products: {}", e);
+        }
+    }
+
+    prompt("\nPress Enter to continue...");
+}
+
+fn view_purchases(db: &Database) {
+    clear_screen();
+    display_logo();
+    println!("=== Purchase History ===\n");
+
+    match db.get_purchases() {
+        Ok(purchases) => {
+            if purchases.is_empty() {
+                println!("No purchase history available.");
+            } else {
+                let mut total_cost = 0.0;
+                for (purchase, product_name) in purchases {
+                    println!("Product: {}", product_name);
+                    println!("Quantity: {}", purchase.quantity);
+                    println!("Purchase Price: ${:.2}/unit", purchase.purchase_price);
+                    println!("Total Cost: ${:.2}", purchase.total_cost);
+                    println!("Date: {}", purchase.purchase_date);
+                    println!("------------------");
+                    total_cost += purchase.total_cost;
+                }
+                println!("\nTotal Purchases Cost: ${:.2}", total_cost);
+            }
+        }
+        Err(e) => {
+            println!("Error fetching purchase history: {}", e);
+        }
+    }
+
+    prompt("\nPress Enter to continue...");
+}
+
+fn handle_purchase_menu(db: &mut Database) {
+    loop {
+        clear_screen();
+        display_logo();
+        display_purchase_menu();
+
+        let choice = prompt("");
+        match choice.trim() {
+            "1" => record_purchase(db),
+            "2" => view_purchases(db),
+            "3" => break,
+            _ => {
+                println!("Invalid option. Press Enter to continue...");
+                prompt("");
+            }
+        }
+    }
+}
+
 fn main() {
     let mut db = match Database::new() {
         Ok(db) => db,
@@ -393,7 +517,8 @@ fn main() {
         match choice.trim() {
             "1" => handle_product_menu(&mut db),
             "2" => handle_sales_menu(&mut db),
-            "3" => {
+            "3" => handle_purchase_menu(&mut db),
+            "4" => {
                 println!("\nGoodbye!");
                 break;
             }

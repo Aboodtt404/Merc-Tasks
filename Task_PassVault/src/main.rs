@@ -1,7 +1,7 @@
 mod pentry;
 
 use std::io::Write;
-use crate::pentry::{prompt, read_password_from_file, ServiceInfo};
+use crate::pentry::{prompt, ServiceInfo};
 
 fn clr() {
     print!("\x1B[2J\x1B[1;1H");
@@ -20,9 +20,7 @@ fn display_ascii() {
 }
 
 fn main() {
-
     clr();
-
     display_ascii();
     
     loop {
@@ -44,20 +42,22 @@ fn main() {
                     prompt("Username: "),
                     prompt("Password: ")
                 );
-                entry.write_to_file();
-                println!("Entry added successfully");
+                match entry.save_to_db() {
+                    Ok(_) => println!("Entry added successfully"),
+                    Err(e) => eprintln!("Error saving entry: {}", e),
+                }
             }
             "2" => {
                 clr();
                 display_ascii();
-                match read_password_from_file() {
-                    Ok(services) => {
-                        if services.is_empty() {
+                match pentry::read_passwords_from_db() {
+                    Ok(passwords) => {
+                        if passwords.is_empty() {
                             println!("No entries found.");
                         } else {
                             println!("\nStored Entries:");
                             println!("--------------------------------");
-                            for item in services {
+                            for item in passwords {
                                 println!("Service: {}", item.service);
                                 println!("Username: {}", item.username);
                                 println!("Password: {}", item.password);
@@ -73,26 +73,23 @@ fn main() {
             "3" => {
                 clr();
                 display_ascii();
-                match read_password_from_file() {
-                    Ok(services) => {
-                        let search = prompt("Search: ");
-                        let mut found = false;
-                        for item in services {
-                            if item.service.to_lowercase().contains(&search.to_lowercase()) {
+                let search = prompt("Search: ");
+                match pentry::search_passwords_in_db(&search) {
+                    Ok(passwords) => {
+                        if passwords.is_empty() {
+                            println!("No matching entries found.");
+                        } else {
+                            for item in passwords {
                                 println!("--------------------------------");
                                 println!("Service: {}", item.service);
                                 println!("Username: {}", item.username);
                                 println!("Password: {}", item.password);
                                 println!("--------------------------------");
-                                found = true;
                             }
-                        }
-                        if !found {
-                            println!("No matching entries found.");
                         }
                     }
                     Err(err) => {
-                        eprintln!("Error reading passwords: {}", err);
+                        eprintln!("Error searching passwords: {}", err);
                     }
                 }
             }

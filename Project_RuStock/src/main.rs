@@ -2,6 +2,7 @@ mod product;
 mod db;
 mod sale;
 mod purchase;
+mod auth;
 
 use std::io::{self, Write};
 use chrono::{DateTime, Utc};
@@ -9,6 +10,7 @@ use crate::product::Product;
 use crate::sale::{Sale, SaleItem};
 use crate::db::Database;
 use crate::purchase::Purchase;
+use crate::auth::{Manager, AuthService};
 
 #[allow(dead_code)]
 fn clear_screen() {
@@ -178,12 +180,16 @@ fn record_sale(db: &mut Database) {
     println!("║             NEW TRADE OUT                ║");
     println!("╚══════════════════════════════════════════╝\n");
 
+    
     let mut sale_items = Vec::new();
     loop {
         match db.get_all_products() {
-            Ok(products) => {
+            Ok(products) => {   
                 if products.is_empty() {
                     println!("No products available.");
+                    println!("Please add products through Supply Chain → New Trade In first.");
+                    println!("\nPress Enter to continue...");
+                    prompt("");
                     return;
                 }
                 println!("\nAvailable Products:");
@@ -232,7 +238,10 @@ fn record_sale(db: &mut Database) {
                 }
             }
             Err(e) => {
+                println!("DEBUG: Error fetching products: {}", e);
                 eprintln!("Error fetching products: {}", e);
+                println!("Press Enter to continue...");
+                prompt("");
                 return;
             }
         }
@@ -318,9 +327,10 @@ fn display_main_menu() {
     println!("║  [2] Trading Operations                  ║");
     println!("║  [3] Supply Chain                        ║");
     println!("║  [4] Reports                             ║");
-    println!("║  [5] Exit Terminal                       ║");
+    println!("║  [5] Manager Administration              ║");
+    println!("║  [6] Exit Terminal                       ║");
     println!("╚══════════════════════════════════════════╝");
-    println!("\nEnter your choice (1-5): ");
+    println!("\nEnter your choice (1-6): ");
 }
 
 fn display_product_menu() {
@@ -369,6 +379,18 @@ fn display_purchase_menu() {
     println!("\nEnter your choice (1-3): ");
 }
 
+fn display_manager_menu() {
+    println!("╔══════════════════════════════════════════╗");
+    println!("║         MANAGER ADMINISTRATION           ║");
+    println!("╠══════════════════════════════════════════╣");
+    println!("║  [1] Add New Manager                     ║");
+    println!("║  [2] View All Managers                   ║");
+    println!("║  [3] Activate/Deactivate Manager         ║");
+    println!("║  [4] Return to Console                   ║");
+    println!("╚══════════════════════════════════════════╝");
+    println!("\nEnter your choice (1-4): ");
+}
+
 #[allow(dead_code)]
 fn display_product_details(product: &Product) {
     println!("╔══════════════════════════════════════════╗");
@@ -409,8 +431,13 @@ fn handle_sales_menu(db: &mut Database) {
         display_sales_menu();
 
         let choice = prompt("");
+        println!("DEBUG: User entered choice: '{}'", choice.trim());
         match choice.trim() {
-            "1" => record_sale(db),
+            "1" => {
+                println!("DEBUG: Calling record_sale...");
+                record_sale(db);
+                println!("DEBUG: Returned from record_sale");
+            },
             "2" => view_sales(db),
             "3" => break,
             _ => {
@@ -627,6 +654,157 @@ fn handle_purchase_menu(db: &mut Database) {
     }
 }
 
+fn add_new_manager(db: &Database) {
+    clear_screen();
+    display_logo();
+    println!("\nAdd New Manager");
+    println!("---------------");
+
+    let username = prompt("Username: ");
+    let password = prompt("Password: ");
+    let full_name = prompt("Full Name: ");
+
+    // Check if username already exists
+    match db.get_manager_by_username(&username) {
+        Ok(Some(_)) => {
+            println!("\nError: Username '{}' already exists!", username);
+            prompt("\nPress Enter to continue...");
+            return;
+        }
+        Ok(None) => {
+            // Username is available, proceed
+        }
+        Err(e) => {
+            println!("\nDatabase error: {}", e);
+            prompt("\nPress Enter to continue...");
+            return;
+        }
+    }
+
+    let manager = Manager::new(username, password, full_name);
+
+    match manager.validate() {
+        Ok(()) => {
+            match db.add_manager(&manager) {
+                Ok(()) => {
+                    println!("\n✅ Manager '{}' added successfully!", manager.username);
+                    println!("Full Name: {}", manager.full_name);
+                }
+                Err(e) => println!("\nError adding manager: {}", e),
+            }
+        }
+        Err(e) => println!("\nValidation error: {}", e),
+    }
+
+    prompt("\nPress Enter to continue...");
+}
+
+fn view_all_managers(db: &Database) {
+    clear_screen();
+    display_logo();
+    println!("╔══════════════════════════════════════════╗");
+    println!("║           MANAGER REGISTRY               ║");
+    println!("╚══════════════════════════════════════════╝\n");
+
+    match db.get_all_managers() {
+        Ok(managers) => {
+            if managers.is_empty() {
+                println!("No managers found in the system.");
+            } else {
+                for manager in &managers {
+                    let status = if manager.is_active { "🟢 Active" } else { "🔴 Inactive" };
+                    println!("┌─ {} ─", manager.full_name);
+                    println!("│  Username: {}", manager.username);
+                    println!("│  Status: {}", status);
+                    let dt = DateTime::<Utc>::from_timestamp(manager.created_at, 0)
+                        .unwrap_or_else(|| Utc::now());
+                    println!("│  Created: {}", dt.format("%Y-%m-%d %H:%M:%S"));
+                    println!("└──────────────────────────────────────");
+                }
+                println!("\nTotal Managers: {}", managers.len());
+            }
+        }
+        Err(e) => println!("Error fetching managers: {}", e),
+    }
+
+    prompt("\nPress Enter to continue...");
+}
+
+fn manage_manager_status(db: &Database) {
+    clear_screen();
+    display_logo();
+    println!("\nActivate/Deactivate Manager");
+    println!("---------------------------");
+
+    match db.get_all_managers() {
+        Ok(managers) => {
+            if managers.is_empty() {
+                println!("No managers found in the system.");
+                prompt("\nPress Enter to continue...");
+                return;
+            }
+
+            println!("\nCurrent Managers:");
+            for (idx, manager) in managers.iter().enumerate() {
+                let status = if manager.is_active { "🟢 Active" } else { "🔴 Inactive" };
+                println!("  [{}] {} ({}) - {}", idx + 1, manager.full_name, manager.username, status);
+            }
+
+            let selection = prompt("\nSelect manager number (or press Enter to cancel): ");
+            if selection.trim().is_empty() {
+                return;
+            }
+
+            if let Ok(idx) = selection.parse::<usize>() {
+                if idx > 0 && idx <= managers.len() {
+                    let manager = &managers[idx - 1];
+                    let new_status = !manager.is_active;
+                    let action = if new_status { "activate" } else { "deactivate" };
+                    
+                    let confirm = prompt(&format!("\nAre you sure you want to {} '{}'? (y/N): ", action, manager.full_name));
+                    if confirm.to_lowercase() == "y" {
+                        match db.update_manager_status(&manager.id, new_status) {
+                            Ok(()) => {
+                                println!("\n✅ Manager '{}' has been {}d successfully!", manager.full_name, action);
+                            }
+                            Err(e) => println!("\nError updating manager status: {}", e),
+                        }
+                    } else {
+                        println!("\nOperation cancelled.");
+                    }
+                } else {
+                    println!("\nInvalid selection.");
+                }
+            } else {
+                println!("\nInvalid input.");
+            }
+        }
+        Err(e) => println!("Error fetching managers: {}", e),
+    }
+
+    prompt("\nPress Enter to continue...");
+}
+
+fn handle_manager_menu(db: &Database) {
+    loop {
+        clear_screen();
+        display_logo();
+        display_manager_menu();
+
+        let choice = prompt("");
+        match choice.trim() {
+            "1" => add_new_manager(db),
+            "2" => view_all_managers(db),
+            "3" => manage_manager_status(db),
+            "4" => break,
+            _ => {
+                println!("Invalid option. Press Enter to continue...");
+                prompt("");
+            }
+        }
+    }
+}
+
 #[allow(dead_code)]
 fn display_error(message: &str) {
     println!("\n╔══════════════════════════════════════════╗");
@@ -645,6 +823,81 @@ fn display_success(message: &str) {
     println!("╚══════════════════════════════════════════╝");
 }
 
+fn display_login_screen() {
+    println!("╔══════════════════════════════════════════╗");
+    println!("║              MANAGER LOGIN               ║");
+    println!("║            RuSTOCK SYSTEM                ║");
+    println!("╠══════════════════════════════════════════╣");
+    println!("║  Access to inventory management system  ║");
+    println!("║  requires manager authentication         ║");
+    println!("╚══════════════════════════════════════════╝\n");
+}
+
+fn login(db: &Database) -> Option<Manager> {
+    let mut attempts = 0;
+    const MAX_ATTEMPTS: i32 = 3;
+
+    while attempts < MAX_ATTEMPTS {
+        clear_screen();
+        display_logo();
+        display_login_screen();
+
+        if attempts > 0 {
+            println!("⚠️  Invalid credentials. Attempt {} of {}\n", attempts + 1, MAX_ATTEMPTS);
+        }
+
+        let username = prompt("Username: ");
+        let password = prompt("Password: ");
+
+        if !AuthService::is_valid_credentials(&username, &password) {
+            println!("\nPlease enter both username and password.");
+            attempts += 1;
+            println!("\nPress Enter to continue...");
+            prompt("");
+            continue;
+        }
+
+        match db.authenticate_manager(&username, &password) {
+            Ok(Some(manager)) => {
+                println!("\n✅ Login successful! Welcome, {}", manager.full_name);
+                println!("\nPress Enter to continue...");
+                prompt("");
+                return Some(manager);
+            }
+            Ok(None) => {
+                attempts += 1;
+                println!("\nPress Enter to continue...");
+                prompt("");
+            }
+            Err(e) => {
+                println!("\nDatabase error: {}", e);
+                attempts += 1;
+                println!("\nPress Enter to continue...");
+                prompt("");
+            }
+        }
+    }
+
+    clear_screen();
+    display_logo();
+    println!("╔══════════════════════════════════════════╗");
+    println!("║            ACCESS DENIED                 ║");
+    println!("╠══════════════════════════════════════════╣");
+    println!("║  Maximum login attempts exceeded.        ║");
+    println!("║  System access blocked.                  ║");
+    println!("╚══════════════════════════════════════════╝\n");
+    println!("Press Enter to exit...");
+    prompt("");
+    None
+}
+
+fn display_authenticated_header(manager: &Manager) {
+    println!("╔══════════════════════════════════════════╗");
+    println!("║  Logged in as: {:<25} ║", manager.full_name);
+    println!("║  Username: {:<30} ║", manager.username);
+    println!("╚══════════════════════════════════════════╝");
+}
+
 fn main() {
     let mut db = match Database::new() {
         Ok(db) => db,
@@ -654,9 +907,19 @@ fn main() {
         }
     };
 
+    // Authentication required
+    let _current_manager = match login(&db) {
+        Some(manager) => manager,
+        None => {
+            println!("Exiting system...");
+            return;
+        }
+    };
+
     loop {
         clear_screen();
         display_logo();
+        display_authenticated_header(&_current_manager);
         display_main_menu();
 
         let choice = prompt("");
@@ -665,8 +928,9 @@ fn main() {
             "2" => handle_sales_menu(&mut db),
             "3" => handle_purchase_menu(&mut db),
             "4" => handle_reports_menu(&mut db),
-            "5" => {
-                println!("\nGoodbye!");
+            "5" => handle_manager_menu(&db),
+            "6" => {
+                println!("\nGoodbye, {}!", _current_manager.full_name);
                 break;
             }
             _ => {

@@ -2,6 +2,7 @@ use rusqlite::{params, Connection, Result, OptionalExtension};
 use crate::product::Product;
 use crate::sale::{Sale, SaleItem};
 use crate::purchase::Purchase;
+use crate::auth::Manager;
 use chrono::Utc;
 
 pub struct Database {
@@ -56,6 +57,21 @@ impl Database {
             )",
             [],
         )?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS managers (
+                id TEXT PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                password TEXT NOT NULL,
+                full_name TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1
+            )",
+            [],
+        )?;
+
+        // Create default admin manager if no managers exist
+        self.create_default_admin_if_needed()?;
 
         Ok(())
     }
@@ -283,5 +299,109 @@ impl Database {
         })?;
 
         purchases.collect()
+    }
+
+    // Manager management functions
+    fn create_default_admin_if_needed(&self) -> Result<()> {
+        let count: i32 = self.conn.query_row(
+            "SELECT COUNT(*) FROM managers",
+            [],
+            |row| row.get(0)
+        )?;
+
+        if count == 0 {
+            let admin = Manager::new(
+                "admin".to_string(),
+                "admin123".to_string(),
+                "System Administrator".to_string()
+            );
+            self.add_manager(&admin)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn add_manager(&self, manager: &Manager) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO managers (id, username, password, full_name, created_at, is_active)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                manager.id,
+                manager.username,
+                manager.password,
+                manager.full_name,
+                manager.created_at,
+                manager.is_active as i32
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_manager_by_username(&self, username: &str) -> Result<Option<Manager>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, username, password, full_name, created_at, is_active 
+             FROM managers WHERE username = ?1"
+        )?;
+        
+        let manager = stmt.query_row([username], |row| {
+            Ok(Manager {
+                id: row.get(0)?,
+                username: row.get(1)?,
+                password: row.get(2)?,
+                full_name: row.get(3)?,
+                created_at: row.get(4)?,
+                is_active: row.get::<_, i32>(5)? == 1,
+            })
+        }).optional()?;
+
+        Ok(manager)
+    }
+
+    pub fn get_all_managers(&self) -> Result<Vec<Manager>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, username, password, full_name, created_at, is_active 
+             FROM managers ORDER BY created_at DESC"
+        )?;
+
+        let managers = stmt.query_map([], |row| {
+            Ok(Manager {
+                id: row.get(0)?,
+                username: row.get(1)?,
+                password: row.get(2)?,
+                full_name: row.get(3)?,
+                created_at: row.get(4)?,
+                is_active: row.get::<_, i32>(5)? == 1,
+            })
+        })?;
+
+        managers.collect()
+    }
+
+    pub fn update_manager_status(&self, manager_id: &str, is_active: bool) -> Result<()> {
+        self.conn.execute(
+            "UPDATE managers SET is_active = ?1 WHERE id = ?2",
+            params![is_active as i32, manager_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn authenticate_manager(&self, username: &str, password: &str) -> Result<Option<Manager>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, username, password, full_name, created_at, is_active 
+             FROM managers WHERE username = ?1 AND password = ?2 AND is_active = 1"
+        )?;
+        
+        let manager = stmt.query_row([username, password], |row| {
+            Ok(Manager {
+                id: row.get(0)?,
+                username: row.get(1)?,
+                password: row.get(2)?,
+                full_name: row.get(3)?,
+                created_at: row.get(4)?,
+                is_active: row.get::<_, i32>(5)? == 1,
+            })
+        }).optional()?;
+
+        Ok(manager)
     }
 } 

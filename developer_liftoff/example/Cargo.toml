@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "src/example_backend"
+]
+
+[dependencies]
+ic-stable-structures = "0.5.4"
+
+resolver = "2"

@@ -1,0 +1,57 @@
+type AuctionItem = record {
+  id: nat64;
+  title: text;
+  description: text;
+  starting_price: nat64;
+  current_highest_bid: nat64;
+  highest_bidder: opt principal;
+  owner: principal;
+  is_active: bool;
+  created_at: nat64;
+  end_time: opt nat64;
+};
+
+type Bid = record {
+  bidder: principal;
+  amount: nat64;
+  timestamp: nat64;
+};
+
+type CreateAuctionItem = record {
+  title: text;
+  description: text;
+  starting_price: nat64;
+  duration_hours: opt nat64;
+};
+
+type AuctionError = variant {
+  ItemNotFound;
+  NotOwner;
+  AuctionEnded;
+  BidTooLow;
+  ItemNotActive;
+  InvalidInput;
+  Unauthorized;
+};
+
+type Result = variant {
+  Ok: AuctionItem;
+  Err: AuctionError;
+};
+
+type Result_1 = variant {
+  Ok;
+  Err: AuctionError;
+};
+
+service : {
+  create_auction_item: (CreateAuctionItem) -> (Result);
+  place_bid: (nat64, nat64) -> (Result_1);
+  get_auction_item: (nat64) -> (opt AuctionItem) query;
+  get_all_auction_items: () -> (vec AuctionItem) query;
+  get_active_auction_items: () -> (vec AuctionItem) query;
+  get_item_bids: (nat64) -> (vec Bid) query;
+  get_user_items: (principal) -> (vec AuctionItem) query;
+  get_auction_count: () -> (nat64) query;
+  update_auction_status: (nat64) -> (Result);
+};

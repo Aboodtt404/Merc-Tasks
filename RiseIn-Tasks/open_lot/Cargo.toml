@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "src/open_lot_backend"
+]
+resolver = "2"

@@ -1,0 +1,26 @@
+{
+  "canisters": {
+    "open_lot_backend": {
+      "candid": "src/open_lot_backend/open_lot_backend.did",
+      "package": "open_lot_backend",
+      "type": "rust"
+    },
+    "open_lot_frontend": {
+      "dependencies": [
+        "open_lot_backend"
+      ],
+      "source": [
+        "src/open_lot_frontend/assets"
+      ],
+      "type": "assets"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}

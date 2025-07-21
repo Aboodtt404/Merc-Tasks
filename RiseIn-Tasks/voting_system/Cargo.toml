@@ -1,0 +1,12 @@
+[workspace]
+members = [
+    "src/voting_system_backend"
+]
+resolver = "2"
+
+[dependencies]
+candid = "0.8"
+ic_cdk = "0.7"
+ic_cdk_timers = "0.1"
+ic_stable_structures = "0.5.6"
+serde = "1.0.154"

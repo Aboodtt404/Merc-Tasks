@@ -36,4 +36,17 @@ A comprehensive store inventory management system that provides:
 - User-friendly terminal interface with ASCII art logo
 - Robust input validation and error handling
 
+## RiseIn-Tasks/voting_system: Decentralized Voting System
+A decentralized voting dApp built on the Internet Computer that allows users to:
+- Create, edit, and end proposals
+- Vote (Approve/Reject/Pass) on active proposals
+- Interact with a Rust backend smart contract via a React and Vite frontend
+- Persist data using stable structures
+
+## RiseIn-Tasks/open_lot: Decentralized Auction System
+A decentralized auction smart contract built on the Internet Computer that allows users to:
+- List items for auction with a starting price and optional duration
+- Place bids on active auctions
+- Utilizes a Rust backend with `StableBTreeMap` for persistent item and bid storage
+
 To be continued...

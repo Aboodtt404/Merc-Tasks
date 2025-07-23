@@ -115,4 +115,27 @@ impl StorageManager {
             })
         })
     }
+
+    pub fn clear_all_data() {
+        // Clear all auction items
+        AUCTION_ITEMS.with(|items| {
+            let mut items_map = items.borrow_mut();
+            let keys: Vec<u64> = items_map.iter().map(|(k, _)| k).collect();
+            for key in keys {
+                items_map.remove(&key);
+            }
+        });
+
+        // Clear all bid lists
+        ITEM_BIDS.with(|bids| {
+            let mut bids_map = bids.borrow_mut();
+            let keys: Vec<u64> = bids_map.iter().map(|(k, _)| k).collect();
+            for key in keys {
+                bids_map.remove(&key);
+            }
+        });
+
+        // Reset ID counter
+        Self::init_counter();
+    }
 } 

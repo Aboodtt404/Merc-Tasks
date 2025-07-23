@@ -57,9 +57,12 @@ type Result_1 = variant {
 
 service : {
   create_auction_item: (CreateAuctionItem) -> (Result);
+  place_bid: (nat64, nat64) -> (Result_1);
   edit_auction_item: (nat64, UpdateAuctionItem) -> (Result);
   stop_auction: (nat64) -> (Result);
-  place_bid: (nat64, nat64) -> (Result_1);
+  update_auction_status: (nat64) -> (Result);
+  clear_all_auctions: () -> (nat64);
+  
   get_auction_item: (nat64) -> (opt AuctionItem) query;
   get_all_auction_items: () -> (vec AuctionItem) query;
   get_active_auction_items: () -> (vec AuctionItem) query;
@@ -68,5 +71,4 @@ service : {
   get_auction_count: () -> (nat64) query;
   get_item_sold_for_most: () -> (opt AuctionItem) query;
   get_most_bid_on_item: () -> (opt AuctionItem) query;
-  update_auction_status: (nat64) -> (Result);
-};
+}

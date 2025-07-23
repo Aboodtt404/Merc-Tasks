@@ -1,5 +1,16 @@
 {
   "canisters": {
+    "internet_identity": {
+      "type": "custom",
+      "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",
+      "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz",
+      "remote": {
+        "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",
+        "id": {
+          "local": "rdmx6-jaaaa-aaaaa-aaadq-cai"
+        }
+      }
+    },
     "open_lot_backend": {
       "candid": "src/open_lot_backend/open_lot_backend.did",
       "package": "open_lot_backend",
@@ -14,7 +25,7 @@
       ],
       "type": "assets",
       "build": [
-        "cd src/open_lot_frontend && npm install && npm run build"
+        "bash -c 'BACKEND_ID=$(dfx canister id open_lot_backend) && II_ID=$(dfx canister id internet_identity) && cd src/open_lot_frontend && echo \"VITE_CANISTER_ID_OPEN_LOT_BACKEND=$BACKEND_ID\" > .env && echo \"VITE_CANISTER_ID_INTERNET_IDENTITY=$II_ID\" >> .env && echo \"VITE_DFX_NETWORK=local\" >> .env && npm install && npm run build'"
       ]
     }
   },

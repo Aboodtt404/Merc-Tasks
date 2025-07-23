@@ -58,9 +58,28 @@ export const AuthProvider = ({ children }) => {
                       window.location.hostname === 'localhost' ||
                       window.location.hostname.includes('127.0.0.1');
 
-      const internetIdentityUrl = isLocal
-        ? `http://localhost:4943/?canisterId=${process.env.CANISTER_ID_INTERNET_IDENTITY || import.meta.env.VITE_CANISTER_ID_INTERNET_IDENTITY || 'rdmx6-jaaaa-aaaah-qcaiq-cai'}`
-        : 'https://identity.ic0.app';
+      // Get Internet Identity canister ID
+      let iiCanisterId = 'rdmx6-jaaaa-aaaaa-aaadq-cai'; // standard local II canister ID
+      
+      try {
+        // Try to get the actual II canister ID from dfx
+        const envIIId = process.env.CANISTER_ID_INTERNET_IDENTITY || 
+                       import.meta.env.VITE_CANISTER_ID_INTERNET_IDENTITY;
+        if (envIIId) {
+          iiCanisterId = envIIId;
+          console.log('Using Internet Identity canister ID from env:', iiCanisterId);
+        } else {
+          console.log('Using hardcoded Internet Identity canister ID:', iiCanisterId);
+        }
+      } catch (error) {
+        console.warn('Using default Internet Identity canister ID:', iiCanisterId);
+      }
+
+      // Use production II frontend even for local development to avoid white page
+      const internetIdentityUrl = 'https://identity.ic0.app';
+
+      console.log('🔐 Attempting login with Internet Identity URL:', internetIdentityUrl);
+      console.log('🔑 Using canister ID:', iiCanisterId);
 
       await authClient.login({
         identityProvider: internetIdentityUrl,

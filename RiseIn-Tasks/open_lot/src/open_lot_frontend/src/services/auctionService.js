@@ -4,7 +4,7 @@ import { idlFactory } from '../declarations/open_lot_backend';
 const canisterId = process.env.CANISTER_ID_OPEN_LOT_BACKEND || 
                    process.env.VITE_CANISTER_ID_OPEN_LOT_BACKEND ||
                    import.meta.env.VITE_CANISTER_ID_OPEN_LOT_BACKEND ||
-                   'rrkah-fqaaa-aaaaa-aaaaq-cai';
+                   'uxrrr-q7777-77774-qaaaq-cai';
 
 const isLocal = process.env.DFX_NETWORK === 'local' || 
                 import.meta.env.VITE_DFX_NETWORK === 'local' ||
@@ -30,15 +30,27 @@ const auctionActor = Actor.createActor(idlFactory, {
 export class AuctionService {
   static async createAuctionItem(itemData) {
     try {
+      console.log('🔧 Creating auction with data:', itemData);
+      console.log('🌐 Using canister ID:', canisterId);
+      console.log('🌐 Using host:', host);
+      
       const result = await auctionActor.create_auction_item(itemData);
+      console.log('📡 Backend response:', result);
+      
       if (result.Ok) {
         return { success: true, data: result.Ok };
       } else {
+        console.error('❌ Backend error:', result.Err);
         return { success: false, error: result.Err };
       }
     } catch (error) {
-      console.error('Error creating auction item:', error);
-      return { success: false, error: 'Network error' };
+      console.error('💥 Network/JS error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      return { success: false, error: `Network error: ${error.message}` };
     }
   }
 
@@ -190,6 +202,17 @@ export class AuctionService {
       InputTooLong: 'Input text is too long',
     };
     
-    return errorMap[error] || 'An unknown error occurred';
+    console.log('🔍 Formatting error:', error, typeof error);
+    
+    if (typeof error === 'string') {
+      return errorMap[error] || `Unknown error: ${error}`;
+    }
+    
+    if (typeof error === 'object' && error !== null) {
+      const errorKey = Object.keys(error)[0];
+      return errorMap[errorKey] || `Unknown error object: ${JSON.stringify(error)}`;
+    }
+    
+    return `Unknown error type: ${error}`;
   }
 } 

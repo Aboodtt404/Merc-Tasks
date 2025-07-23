@@ -23,7 +23,7 @@ if (!fs.existsSync(backendDir)) {
 }
 
 // Try to get the canister ID from dfx
-let canisterId = 'rrkah-fqaaa-aaaaa-aaaaq-cai'; // fallback
+let canisterId = 'uxrrr-q7777-77774-qaaaq-cai'; // fallback
 
 try {
   // Check if we're in a dfx project and can get the canister ID

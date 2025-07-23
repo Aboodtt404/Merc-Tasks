@@ -36,6 +36,11 @@ fn update_auction_status(item_id: u64) -> Result<AuctionItem, AuctionError> {
     AuctionHandlers::update_auction_status(item_id)
 }
 
+#[update]
+fn clear_all_auctions() -> u64 {
+    AuctionHandlers::clear_all_auctions()
+}
+
 #[query]
 fn get_auction_item(item_id: u64) -> Option<AuctionItem> {
     QueryHandlers::get_auction_item(item_id)

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, User, TrendingUp, Gavel, AlertCircle } from 'lucide-react';
 import { AuctionService } from '../services/auctionService';
+import { formatPrincipal, principalsEqual } from '../utils/principal';
 
 export default function AuctionCard({ auction, onBid, currentUser, onUpdate }) {
   const [bidAmount, setBidAmount] = useState('');
@@ -9,7 +10,7 @@ export default function AuctionCard({ auction, onBid, currentUser, onUpdate }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const isOwner = currentUser && auction.owner === currentUser;
+  const isOwner = currentUser && principalsEqual(auction.owner, currentUser);
   const timeLeft = auction.end_time ? 
     Math.max(0, Number(auction.end_time) - Date.now() * 1000000) : null;
   
@@ -71,7 +72,7 @@ export default function AuctionCard({ auction, onBid, currentUser, onUpdate }) {
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center space-x-1 text-white/60">
             <User className="w-4 h-4" />
-            <span>Owner: {auction.owner.slice(0, 8)}...</span>
+            <span>Owner: {formatPrincipal(auction.owner)}</span>
           </div>
           {auction.is_active ? (
             <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">
@@ -97,7 +98,7 @@ export default function AuctionCard({ auction, onBid, currentUser, onUpdate }) {
 
           {auction.highest_bidder && (
             <div className="text-xs text-white/50">
-              Highest bidder: {auction.highest_bidder.slice(0, 8)}...
+              Highest bidder: {formatPrincipal(auction.highest_bidder)}
             </div>
           )}
 

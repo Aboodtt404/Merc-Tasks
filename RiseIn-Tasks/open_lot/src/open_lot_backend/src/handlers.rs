@@ -135,10 +135,16 @@ impl AuctionHandlers {
 
         if Validator::is_auction_expired(&item) && item.is_active {
             item.is_active = false;
-            StorageManager::update_auction_item(item_id, item.clone());
+            StorageManager::insert_auction_item(item.id, item.clone());
         }
 
         Ok(item)
+    }
+
+    pub fn clear_all_auctions() -> u64 {
+        let count = StorageManager::get_auction_count();
+        StorageManager::clear_all_data();
+        count
     }
 }
 

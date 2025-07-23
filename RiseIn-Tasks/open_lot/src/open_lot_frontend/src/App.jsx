@@ -6,6 +6,7 @@ import Header from './components/Header';
 import AuctionCard from './components/AuctionCard';
 import { AuctionService } from './services/auctionService';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { principalsEqual } from './utils/principal';
 import { Plus, Search, Loader, Package } from 'lucide-react';
 
 function CreateAuctionForm({ onSubmit, loading }) {
@@ -29,6 +30,8 @@ function CreateAuctionForm({ onSubmit, loading }) {
       starting_price: BigInt(Math.floor(Number(formData.starting_price) * 100000000)),
       duration_hours: formData.duration_hours ? [BigInt(formData.duration_hours)] : []
     };
+    
+    console.log('📝 Form data prepared:', data);
     
     onSubmit(data);
   };
@@ -196,16 +199,23 @@ function AuctionApp() {
   const handleCreateAuction = async (data) => {
     try {
       setActionLoading(true);
+      console.log('🚀 Creating auction from UI with data:', data);
+      
       const result = await AuctionService.createAuctionItem(data);
+      console.log('📋 Service result:', result);
+      
       if (result.success) {
         toast.success('Auction created successfully!');
         setCurrentView('marketplace');
         fetchAuctions();
       } else {
-        toast.error('Failed to create auction: ' + AuctionService.formatError(result.error));
+        const errorMessage = AuctionService.formatError(result.error);
+        console.error('🔥 Creation failed:', result.error, '→', errorMessage);
+        toast.error('Failed to create auction: ' + errorMessage);
       }
     } catch (error) {
-      toast.error('Failed to create auction');
+      console.error('💥 Unexpected error in handleCreateAuction:', error);
+      toast.error('Failed to create auction: ' + error.message);
     } finally {
       setActionLoading(false);
     }
@@ -226,7 +236,7 @@ function AuctionApp() {
   };
 
   const filteredAuctions = currentView === 'profile' 
-    ? auctions.filter(auction => auction.owner === principal)
+    ? auctions.filter(auction => principalsEqual(auction.owner, principal))
     : auctions;
 
   if (authLoading) {

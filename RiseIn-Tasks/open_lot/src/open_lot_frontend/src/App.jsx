@@ -221,17 +221,52 @@ function AuctionApp() {
     }
   };
 
-  const handlePlaceBid = async (auctionId, amount) => {
+  const handlePlaceBid = async (itemId, bidAmount) => {
+    if (!principal) {
+      toast.error('Please connect to place a bid');
+      return;
+    }
+
     try {
-      const result = await AuctionService.placeBid(auctionId, BigInt(Math.floor(amount * 100000000)));
+      setActionLoading(true);
+      const result = await AuctionService.placeBid(itemId, bidAmount);
       if (result.success) {
         toast.success('Bid placed successfully!');
-        fetchAuctions();
+        await fetchAuctions();
       } else {
-        toast.error('Failed to place bid: ' + AuctionService.formatError(result.error));
+        toast.error(AuctionService.formatError(result.error));
       }
     } catch (error) {
       toast.error('Failed to place bid');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleClearAllAuctions = async () => {
+    if (!principal) {
+      toast.error('Please connect to clear auctions');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to clear ALL auctions? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      toast.loading('Clearing all auctions...');
+      const result = await AuctionService.clearAllAuctions();
+      if (result.success) {
+        toast.success(`Successfully cleared ${result.data} auctions!`);
+        await fetchAuctions();
+      } else {
+        toast.error('Failed to clear auctions: ' + AuctionService.formatError(result.error));
+      }
+    } catch (error) {
+      toast.error('Failed to clear auctions');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -256,6 +291,8 @@ function AuctionApp() {
       <Header 
         currentView={currentView} 
         setCurrentView={setCurrentView}
+        onClearAll={handleClearAllAuctions}
+        clearLoading={actionLoading}
       />
       
       <main className="pt-24 pb-12 px-6">

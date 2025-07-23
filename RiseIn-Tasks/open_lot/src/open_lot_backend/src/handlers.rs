@@ -135,6 +135,12 @@ impl AuctionHandlers {
 
         if Validator::is_auction_expired(&item) && item.is_active {
             item.is_active = false;
+            
+            // Transfer ownership to highest bidder when auction expires
+            if let Some(highest_bidder) = item.highest_bidder {
+                item.new_owner = Some(highest_bidder);
+            }
+            
             StorageManager::insert_auction_item(item.id, item.clone());
         }
 

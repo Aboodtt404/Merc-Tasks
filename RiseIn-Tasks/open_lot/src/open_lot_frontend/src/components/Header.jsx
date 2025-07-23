@@ -1,10 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Plus, User, Search, LogIn, LogOut } from 'lucide-react';
+import { Plus, User, Search, LogIn, LogOut, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import logoSvg from '../assets/images/OpenLot.svg';
 
-export default function Header({ currentView, setCurrentView }) {
+export default function Header({ currentView, setCurrentView, onClearAll, clearLoading }) {
   const { isAuthenticated, principal, login, logout } = useAuth();
   const navItems = [
     { id: 'marketplace', label: 'Marketplace', icon: Search },
@@ -70,6 +70,18 @@ export default function Header({ currentView, setCurrentView }) {
             ) : null}
             
             {isAuthenticated ? (
+              <>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onClearAll}
+                  disabled={clearLoading}
+                  className="flex items-center space-x-2 px-3 py-2 bg-orange-600/20 hover:bg-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors text-orange-400"
+                  title="Clear all auctions"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="hidden sm:block text-sm">Clear All</span>
+                </motion.button>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -79,6 +91,7 @@ export default function Header({ currentView, setCurrentView }) {
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:block text-sm">Logout</span>
               </motion.button>
+              </>
             ) : (
               <motion.button
                 whileHover={{ scale: 1.05 }}

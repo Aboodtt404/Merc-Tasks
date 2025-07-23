@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AuthClient } from '@dfinity/auth-client';
-import { HttpAgent, Actor } from '@dfinity/agent';
+import { Ed25519KeyIdentity } from '@dfinity/identity';
 
 const AuthContext = createContext();
 
@@ -15,112 +14,95 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [principal, setPrincipal] = useState(null);
-  const [authClient, setAuthClient] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Generate consistent Ed25519 identity for local development
+  const generateLocalIdentity = () => {
+    try {
+      let seedData = localStorage.getItem('local_auth_seed');
+      if (!seedData) {
+        // Create a new seed and store it
+        const seed = new Uint8Array(32);
+        crypto.getRandomValues(seed);
+        seedData = Array.from(seed).join(',');
+        localStorage.setItem('local_auth_seed', seedData);
+      }
+      
+      const seed = new Uint8Array(seedData.split(',').map(x => parseInt(x)));
+      const identity = Ed25519KeyIdentity.fromSecretKey(seed);
+      const principal = identity.getPrincipal().toString();
+      
+      return principal;
+    } catch (error) {
+      console.error('Error generating identity:', error);
+      return '2vxsx-fae'; // fallback anonymous principal
+    }
+  };
+
   useEffect(() => {
-    initAuth();
+    checkAuthStatus();
   }, []);
 
-  const initAuth = async () => {
+  const checkAuthStatus = async () => {
     try {
-      const client = await AuthClient.create();
-      setAuthClient(client);
-
-      const isAuthenticated = await client.isAuthenticated();
-      setIsAuthenticated(isAuthenticated);
-
-      if (isAuthenticated) {
-        const identity = client.getIdentity();
-        const principal = identity.getPrincipal();
-        setPrincipal(principal.toString());
+      // Check if user is "logged in" locally
+      const localAuth = localStorage.getItem('local_auth_status');
+      if (localAuth === 'authenticated') {
+        const userPrincipal = generateLocalIdentity();
+        setPrincipal(userPrincipal);
+        setIsAuthenticated(true);
+        console.log('🔐 Local auth: Already authenticated as', userPrincipal);
       } else {
-        setPrincipal('2vxsx-fae');
+        console.log('🔐 Local auth: Not authenticated');
       }
     } catch (error) {
-      console.error('Auth initialization failed:', error);
-      setPrincipal('2vxsx-fae');
+      console.error('Error checking auth status:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const login = async () => {
-    if (!authClient) return false;
-
     try {
-      const days = BigInt(7);
-      const hours = BigInt(24);
-      const nanoseconds = days * hours * BigInt(3600000000000);
-
-      const isLocal = process.env.DFX_NETWORK === 'local' || 
-                      import.meta.env.VITE_DFX_NETWORK === 'local' ||
-                      window.location.hostname === 'localhost' ||
-                      window.location.hostname.includes('127.0.0.1');
-
-      // Get Internet Identity canister ID
-      let iiCanisterId = 'rdmx6-jaaaa-aaaaa-aaadq-cai'; // standard local II canister ID
+      setLoading(true);
       
-      try {
-        // Try to get the actual II canister ID from dfx
-        const envIIId = process.env.CANISTER_ID_INTERNET_IDENTITY || 
-                       import.meta.env.VITE_CANISTER_ID_INTERNET_IDENTITY;
-        if (envIIId) {
-          iiCanisterId = envIIId;
-          console.log('Using Internet Identity canister ID from env:', iiCanisterId);
-        } else {
-          console.log('Using hardcoded Internet Identity canister ID:', iiCanisterId);
-        }
-      } catch (error) {
-        console.warn('Using default Internet Identity canister ID:', iiCanisterId);
-      }
-
-      // Use production II frontend even for local development to avoid white page
-      const internetIdentityUrl = 'https://identity.ic0.app';
-
-      console.log('🔐 Attempting login with Internet Identity URL:', internetIdentityUrl);
-      console.log('🔑 Using canister ID:', iiCanisterId);
-
-      await authClient.login({
-        identityProvider: internetIdentityUrl,
-        maxTimeToLive: nanoseconds,
-        onSuccess: () => {
-          const identity = authClient.getIdentity();
-          const principal = identity.getPrincipal();
-          setPrincipal(principal.toString());
-          setIsAuthenticated(true);
-        },
-        onError: (error) => {
-          console.error('Login failed:', error);
-        }
-      });
-
-      return true;
+      // Simple local authentication
+      const userPrincipal = generateLocalIdentity();
+      localStorage.setItem('local_auth_status', 'authenticated');
+      
+      setPrincipal(userPrincipal);
+      setIsAuthenticated(true);
+      
+      console.log('✅ Local auth: Logged in as', userPrincipal);
     } catch (error) {
-      console.error('Login error:', error);
-      return false;
+      console.error('Login failed:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
-    if (!authClient) return;
-
     try {
-      await authClient.logout();
+      localStorage.removeItem('local_auth_status');
+      setPrincipal(null);
       setIsAuthenticated(false);
-      setPrincipal('2vxsx-fae');
+      console.log('🔓 Local auth: Logged out');
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Logout failed:', error);
     }
   };
 
   const value = {
     isAuthenticated,
     principal,
+    loading,
     login,
     logout,
-    loading
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }; 

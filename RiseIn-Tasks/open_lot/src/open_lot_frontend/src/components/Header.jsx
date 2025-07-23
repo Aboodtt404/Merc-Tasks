@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Plus, User, Search } from 'lucide-react';
-import logoSvg from '../../assets/images/logo.svg';
+import logoSvg from '../assets/images/OpenLot.svg';
 
 export default function Header({ currentView, setCurrentView, userPrincipal }) {
   const navItems = [
@@ -22,19 +22,12 @@ export default function Header({ currentView, setCurrentView, userPrincipal }) {
             whileHover={{ scale: 1.05 }}
             className="flex items-center space-x-3"
           >
-            <div className="w-12 h-12 p-2 bg-white/10 rounded-xl shadow-lg backdrop-blur-sm border border-white/20 flex items-center justify-center">
-              <img 
-                src={logoSvg} 
-                alt="OpenLot Logo" 
-                className="w-8 h-8 object-contain filter brightness-0 invert"
-              />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                OpenLot
-              </h1>
-              <p className="text-xs text-white/60">Decentralized Auctions</p>
-            </div>
+            <img 
+              src={logoSvg} 
+              alt="OpenLot Logo" 
+              className="w-12 h-12 object-contain filter brightness-0 invert"
+            />
+            <p className="text-sm text-white/70">Decentralized Auctions</p>
           </motion.div>
 
           <nav className="flex items-center space-x-2">
@@ -50,9 +43,12 @@ export default function Header({ currentView, setCurrentView, userPrincipal }) {
                   onClick={() => setCurrentView(item.id)}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                     isActive
-                      ? 'bg-primary-600 text-white shadow-lg border border-primary-500/50'
+                      ? 'text-white shadow-lg text-shadow-lg'
                       : 'text-white/80 hover:text-white hover:bg-black/40 border border-transparent hover:border-white/20'
                   }`}
+                  style={{
+                    textShadow: isActive ? '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4)' : undefined
+                  }}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="hidden sm:block font-medium">{item.label}</span>

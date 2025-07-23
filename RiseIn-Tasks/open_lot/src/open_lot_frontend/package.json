@@ -1,11 +1,14 @@
 {
   "name": "open_lot_frontend",
   "version": "0.1.0",
+  "type": "module",
   "description": "Internet Computer auction dApp frontend with React, Three.js, and Tailwind CSS",
   "scripts": {
     "dev": "vite",
+    "dev:watch": "nodemon --exec \"vite\" --ext js,jsx,ts,tsx,css,scss",
     "build": "vite build",
-    "serve": "vite preview"
+    "serve": "vite preview",
+    "watch": "nodemon --watch src --ext js,jsx,ts,tsx,css,scss --exec \"npm run dev\""
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -22,6 +25,7 @@
     "vite": "^4.4.9",
     "tailwindcss": "^3.3.5",
     "autoprefixer": "^10.4.16",
-    "postcss": "^8.4.31"
+    "postcss": "^8.4.31",
+    "nodemon": "^3.0.1"
   }
 } 

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, User, TrendingUp, Gavel } from 'lucide-react';
+import { Clock, User, TrendingUp, Gavel, AlertCircle } from 'lucide-react';
+import { AuctionService } from '../services/auctionService';
 
-export default function AuctionCard({ auction, onBid, currentUser }) {
+export default function AuctionCard({ auction, onBid, currentUser, onUpdate }) {
   const [bidAmount, setBidAmount] = useState('');
   const [showBidInput, setShowBidInput] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const isOwner = currentUser && auction.owner === currentUser;
   const timeLeft = auction.end_time ? 
@@ -17,11 +20,30 @@ export default function AuctionCard({ auction, onBid, currentUser }) {
     return `${hours}h ${minutes}m`;
   };
 
-  const handleBid = () => {
-    if (bidAmount && Number(bidAmount) > Number(auction.current_highest_bid)) {
-      onBid(auction.id, Number(bidAmount));
-      setBidAmount('');
-      setShowBidInput(false);
+  const handleBid = async () => {
+    if (!bidAmount || Number(bidAmount) <= Number(auction.current_highest_bid)) {
+      setError('Bid must be higher than current highest bid');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await AuctionService.placeBid(auction.id, BigInt(Math.floor(Number(bidAmount) * 100000000)));
+      
+      if (result.success) {
+        setBidAmount('');
+        setShowBidInput(false);
+        if (onUpdate) onUpdate();
+        if (onBid) onBid(auction.id, Number(bidAmount));
+      } else {
+        setError(AuctionService.formatError(result.error));
+      }
+    } catch (error) {
+      setError('Failed to place bid. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -68,7 +90,7 @@ export default function AuctionCard({ auction, onBid, currentUser }) {
             <div className="flex items-center space-x-1">
               <TrendingUp className="w-4 h-4 text-accent-500" />
               <span className="text-lg font-bold text-accent-500">
-                {auction.current_highest_bid.toString()} ICP
+                {(Number(auction.current_highest_bid) / 100000000).toFixed(8)} ICP
               </span>
             </div>
           </div>
@@ -89,24 +111,40 @@ export default function AuctionCard({ auction, onBid, currentUser }) {
 
         {auction.is_active && !isOwner && (
           <div className="space-y-2">
+            {error && (
+              <div className="flex items-center space-x-2 text-red-400 text-sm">
+                <AlertCircle className="w-4 h-4" />
+                <span>{error}</span>
+              </div>
+            )}
+            
             {!showBidInput ? (
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setShowBidInput(true)}
+                onClick={() => {
+                  setShowBidInput(true);
+                  setError(null);
+                }}
                 className="w-full btn-primary"
+                disabled={isLoading}
               >
-                Place Bid
+                {isLoading ? 'Processing...' : 'Place Bid'}
               </motion.button>
             ) : (
               <div className="space-y-2">
                 <input
                   type="number"
                   value={bidAmount}
-                  onChange={(e) => setBidAmount(e.target.value)}
-                  placeholder={`Min: ${Number(auction.current_highest_bid) + 1} ICP`}
+                  onChange={(e) => {
+                    setBidAmount(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder={`Min: ${Number(auction.current_highest_bid) / 100000000 + 0.01} ICP`}
                   className="input-field"
-                  min={Number(auction.current_highest_bid) + 1}
+                  min={(Number(auction.current_highest_bid) / 100000000 + 0.01).toFixed(8)}
+                  step="0.01"
+                  disabled={isLoading}
                 />
                 <div className="flex space-x-2">
                   <motion.button
@@ -114,9 +152,9 @@ export default function AuctionCard({ auction, onBid, currentUser }) {
                     whileTap={{ scale: 0.98 }}
                     onClick={handleBid}
                     className="flex-1 btn-primary"
-                    disabled={!bidAmount || Number(bidAmount) <= Number(auction.current_highest_bid)}
+                    disabled={isLoading || !bidAmount || Number(bidAmount) <= Number(auction.current_highest_bid) / 100000000}
                   >
-                    Confirm Bid
+                    {isLoading ? 'Confirming...' : 'Confirm Bid'}
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
@@ -124,8 +162,10 @@ export default function AuctionCard({ auction, onBid, currentUser }) {
                     onClick={() => {
                       setShowBidInput(false);
                       setBidAmount('');
+                      setError(null);
                     }}
                     className="px-4 btn-secondary"
+                    disabled={isLoading}
                   >
                     Cancel
                   </motion.button>

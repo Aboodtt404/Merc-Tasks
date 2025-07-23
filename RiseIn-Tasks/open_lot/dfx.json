@@ -10,9 +10,12 @@
         "open_lot_backend"
       ],
       "source": [
-        "src/open_lot_frontend/assets"
+        "src/open_lot_frontend/dist"
       ],
-      "type": "assets"
+      "type": "assets",
+      "build": [
+        "cd src/open_lot_frontend && npm install && npm run build"
+      ]
     }
   },
   "defaults": {

@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "dev:watch": "nodemon --exec \"vite\" --ext js,jsx,ts,tsx,css,scss",
-    "build": "vite build",
+    "prebuild": "npm run generate:declarations",
+    "build": "vite build && npm run postbuild",
+    "postbuild": "cp .ic-assets.json5 dist/.ic-assets.json5 2>/dev/null || echo 'No .ic-assets.json5 found, using default'",
+    "generate:declarations": "node scripts/generate-declarations.js",
     "serve": "vite preview",
     "watch": "nodemon --watch src --ext js,jsx,ts,tsx,css,scss --exec \"npm run dev\""
   },
@@ -18,7 +21,11 @@
     "three": "^0.157.0",
     "framer-motion": "^10.16.4",
     "lucide-react": "^0.292.0",
-    "react-hot-toast": "^2.4.1"
+    "react-hot-toast": "^2.4.1",
+    "@dfinity/agent": "^1.0.1",
+    "@dfinity/auth-client": "^1.0.1",
+    "@dfinity/candid": "^1.0.1",
+    "@dfinity/principal": "^1.0.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.4",
@@ -26,6 +33,7 @@
     "tailwindcss": "^3.3.5",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.31",
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "terser": "^5.24.0"
   }
 } 

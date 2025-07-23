@@ -6,6 +6,7 @@ type AuctionItem = record {
   current_highest_bid: nat64;
   highest_bidder: opt principal;
   owner: principal;
+  new_owner: opt principal;
   is_active: bool;
   created_at: nat64;
   end_time: opt nat64;
@@ -24,6 +25,13 @@ type CreateAuctionItem = record {
   duration_hours: opt nat64;
 };
 
+type UpdateAuctionItem = record {
+  title: opt text;
+  description: opt text;
+  starting_price: opt nat64;
+  duration_hours: opt nat64;
+};
+
 type AuctionError = variant {
   ItemNotFound;
   NotOwner;
@@ -32,6 +40,9 @@ type AuctionError = variant {
   ItemNotActive;
   InvalidInput;
   Unauthorized;
+  AuctionHasBids;
+  SecurityViolation;
+  InputTooLong;
 };
 
 type Result = variant {
@@ -46,6 +57,8 @@ type Result_1 = variant {
 
 service : {
   create_auction_item: (CreateAuctionItem) -> (Result);
+  edit_auction_item: (nat64, UpdateAuctionItem) -> (Result);
+  stop_auction: (nat64) -> (Result);
   place_bid: (nat64, nat64) -> (Result_1);
   get_auction_item: (nat64) -> (opt AuctionItem) query;
   get_all_auction_items: () -> (vec AuctionItem) query;
@@ -53,5 +66,7 @@ service : {
   get_item_bids: (nat64) -> (vec Bid) query;
   get_user_items: (principal) -> (vec AuctionItem) query;
   get_auction_count: () -> (nat64) query;
+  get_item_sold_for_most: () -> (opt AuctionItem) query;
+  get_most_bid_on_item: () -> (opt AuctionItem) query;
   update_auction_status: (nat64) -> (Result);
 };

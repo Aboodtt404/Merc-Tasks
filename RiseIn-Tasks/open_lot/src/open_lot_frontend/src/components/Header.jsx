@@ -1,9 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Plus, User, Search } from 'lucide-react';
+import { Plus, User, Search, LogIn, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import logoSvg from '../assets/images/OpenLot.svg';
 
-export default function Header({ currentView, setCurrentView, userPrincipal }) {
+export default function Header({ currentView, setCurrentView }) {
+  const { isAuthenticated, principal, login, logout } = useAuth();
   const navItems = [
     { id: 'marketplace', label: 'Marketplace', icon: Search },
     { id: 'create', label: 'Create Auction', icon: Plus },
@@ -58,20 +60,34 @@ export default function Header({ currentView, setCurrentView, userPrincipal }) {
           </nav>
 
           <div className="flex items-center space-x-4">
-            {userPrincipal ? (
+            {principal ? (
               <div className="bg-black/40 border border-white/20 px-3 py-2 rounded-lg backdrop-blur-sm">
-                <p className="text-xs text-white/60">Connected</p>
+                <p className="text-xs text-white/60">{isAuthenticated ? 'Authenticated' : 'Anonymous'}</p>
                 <p className="text-sm font-mono text-white">
-                  {userPrincipal.slice(0, 8)}...{userPrincipal.slice(-4)}
+                  {principal.slice(0, 8)}...{principal.slice(-4)}
                 </p>
               </div>
+            ) : null}
+            
+            {isAuthenticated ? (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={logout}
+                className="flex items-center space-x-2 px-3 py-2 bg-red-600/20 hover:bg-red-600/30 rounded-lg transition-colors text-red-400"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:block text-sm">Logout</span>
+              </motion.button>
             ) : (
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="btn-primary"
+                onClick={login}
+                className="flex items-center space-x-2 btn-primary"
               >
-                Connect Wallet
+                <LogIn className="w-4 h-4" />
+                <span className="hidden sm:block">Connect</span>
               </motion.button>
             )}
           </div>

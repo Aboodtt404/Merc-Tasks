@@ -4,45 +4,9 @@ import { Toaster, toast } from 'react-hot-toast';
 import ThreeBackground from './components/ThreeBackground';
 import Header from './components/Header';
 import AuctionCard from './components/AuctionCard';
+import { AuctionService } from './services/auctionService';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Plus, Search, Loader, Package } from 'lucide-react';
-
-// Mock backend integration - replace with actual canister calls
-const mockBackend = {
-  getAllAuctions: async () => [
-    {
-      id: 1,
-      title: "Rare Digital Art NFT",
-      description: "A unique piece of digital art created by renowned artist.",
-      starting_price: 100,
-      current_highest_bid: 250,
-      highest_bidder: "rdmx6-jaaaa-aaaah-qcaiq-cai",
-      owner: "rrkah-fqaaa-aaaah-qcaiq-cai",
-      is_active: true,
-      created_at: Date.now() * 1000000,
-      end_time: (Date.now() + 86400000) * 1000000
-    },
-    {
-      id: 2,
-      title: "Vintage Watch Collection",
-      description: "A collection of vintage watches from the 1960s era.",
-      starting_price: 500,
-      current_highest_bid: 500,
-      highest_bidder: null,
-      owner: "rdmx6-jaaaa-aaaah-qcaiq-cai",
-      is_active: true,
-      created_at: Date.now() * 1000000,
-      end_time: null
-    }
-  ],
-  createAuction: async (data) => {
-    toast.success('Auction created successfully!');
-    return { id: Date.now(), ...data, is_active: true };
-  },
-  placeBid: async (id, amount) => {
-    toast.success('Bid placed successfully!');
-    return true;
-  }
-};
 
 function CreateAuctionForm({ onSubmit, loading }) {
   const [formData, setFormData] = useState({
@@ -60,9 +24,10 @@ function CreateAuctionForm({ onSubmit, loading }) {
     }
     
     const data = {
-      ...formData,
-      starting_price: Number(formData.starting_price),
-      duration_hours: formData.duration_hours ? Number(formData.duration_hours) : null
+      title: formData.title,
+      description: formData.description,
+      starting_price: BigInt(Math.floor(Number(formData.starting_price) * 100000000)),
+      duration_hours: formData.duration_hours ? [BigInt(formData.duration_hours)] : []
     };
     
     onSubmit(data);
@@ -158,7 +123,7 @@ function CreateAuctionForm({ onSubmit, loading }) {
   );
 }
 
-function AuctionGrid({ auctions, onBid, currentUser, loading }) {
+function AuctionGrid({ auctions, onBid, currentUser, loading, fetchAuctions }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -192,18 +157,19 @@ function AuctionGrid({ auctions, onBid, currentUser, loading }) {
           auction={auction}
           onBid={onBid}
           currentUser={currentUser}
+          onUpdate={fetchAuctions}
         />
       ))}
     </div>
   );
 }
 
-export default function App() {
+function AuctionApp() {
+  const { principal, loading: authLoading } = useAuth();
   const [currentView, setCurrentView] = useState('marketplace');
   const [auctions, setAuctions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [userPrincipal] = useState('rdmx6-jaaaa-aaaah-qcaiq-cai'); // Mock user
 
   useEffect(() => {
     fetchAuctions();
@@ -212,10 +178,16 @@ export default function App() {
   const fetchAuctions = async () => {
     try {
       setLoading(true);
-      const data = await mockBackend.getAllAuctions();
-      setAuctions(data);
+      const result = await AuctionService.getAllAuctionItems();
+      if (result.success) {
+        setAuctions(result.data);
+      } else {
+        toast.error('Failed to fetch auctions: ' + AuctionService.formatError(result.error));
+        setAuctions([]);
+      }
     } catch (error) {
       toast.error('Failed to fetch auctions');
+      setAuctions([]);
     } finally {
       setLoading(false);
     }
@@ -224,9 +196,14 @@ export default function App() {
   const handleCreateAuction = async (data) => {
     try {
       setActionLoading(true);
-      await mockBackend.createAuction(data);
-      setCurrentView('marketplace');
-      fetchAuctions();
+      const result = await AuctionService.createAuctionItem(data);
+      if (result.success) {
+        toast.success('Auction created successfully!');
+        setCurrentView('marketplace');
+        fetchAuctions();
+      } else {
+        toast.error('Failed to create auction: ' + AuctionService.formatError(result.error));
+      }
     } catch (error) {
       toast.error('Failed to create auction');
     } finally {
@@ -236,16 +213,32 @@ export default function App() {
 
   const handlePlaceBid = async (auctionId, amount) => {
     try {
-      await mockBackend.placeBid(auctionId, amount);
-      fetchAuctions();
+      const result = await AuctionService.placeBid(auctionId, BigInt(Math.floor(amount * 100000000)));
+      if (result.success) {
+        toast.success('Bid placed successfully!');
+        fetchAuctions();
+      } else {
+        toast.error('Failed to place bid: ' + AuctionService.formatError(result.error));
+      }
     } catch (error) {
       toast.error('Failed to place bid');
     }
   };
 
   const filteredAuctions = currentView === 'profile' 
-    ? auctions.filter(auction => auction.owner === userPrincipal)
+    ? auctions.filter(auction => auction.owner === principal)
     : auctions;
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-8 h-8 animate-spin text-primary-500 mx-auto mb-4" />
+          <p className="text-white/70">Initializing...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -253,7 +246,6 @@ export default function App() {
       <Header 
         currentView={currentView} 
         setCurrentView={setCurrentView}
-        userPrincipal={userPrincipal}
       />
       
       <main className="pt-24 pb-12 px-6">
@@ -287,8 +279,9 @@ export default function App() {
                 <AuctionGrid
                   auctions={filteredAuctions}
                   onBid={handlePlaceBid}
-                  currentUser={userPrincipal}
+                  currentUser={principal}
                   loading={loading}
+                  fetchAuctions={fetchAuctions}
                 />
               </motion.div>
             )}
@@ -308,5 +301,13 @@ export default function App() {
         }}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AuctionApp />
+    </AuthProvider>
   );
 } 

@@ -1,0 +1,27 @@
+{
+  "name": "open_lot_frontend",
+  "version": "0.1.0",
+  "description": "Internet Computer auction dApp frontend with React, Three.js, and Tailwind CSS",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@react-three/fiber": "^8.15.12",
+    "@react-three/drei": "^9.88.13",
+    "three": "^0.157.0",
+    "framer-motion": "^10.16.4",
+    "lucide-react": "^0.292.0",
+    "react-hot-toast": "^2.4.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.4",
+    "vite": "^4.4.9",
+    "tailwindcss": "^3.3.5",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31"
+  }
+} 

@@ -165,6 +165,7 @@ fn create_auction_item(item_data: CreateAuctionItem) -> Result<AuctionItem, Auct
     Ok(auction_item)
 }
 
+
 #[update]
 fn place_bid(item_id: u64, bid_amount: u64) -> Result<(), AuctionError> {
     let caller = caller();
